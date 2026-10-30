@@ -165,10 +165,10 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .cplay.on{background:#1FC2C2}.cplay.on svg{fill:#fff}
 .lens::before{padding:0;background:none;-webkit-mask:none;mask:none;box-shadow:inset 0 0 0 6px #000,inset 1px 2px 0 6px #2c2c2e,inset -1px -2px 0 6px #1c1c1e}
 .world video{z-index:1;background:#000}
-.crop{position:relative;align-self:center;max-height:52vh;touch-action:none;user-select:none;-webkit-user-select:none;line-height:0}
-.crop img{max-width:100%;max-height:52vh;display:block;border-radius:6px;pointer-events:none}
-.cbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 2000px rgba(0,0,0,.45);border-radius:2px;cursor:move}
-.crop{overflow:hidden;border-radius:6px}
+.cropl{position:absolute;inset:0;z-index:3;touch-action:none;overflow:hidden}
+.cropl[hidden]{display:none}
+.cropl img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-select:none}
+.cbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 2000px rgba(0,0,0,.5);border-radius:2px;cursor:move;touch-action:none}
 .cbox i{position:absolute;width:30px;height:30px}
 .cbox i::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .cbox i[data-h=nw]{left:-10px;top:-10px}.cbox i[data-h=ne]{right:-10px;top:-10px}.cbox i[data-h=sw]{left:-10px;bottom:-10px}.cbox i[data-h=se]{right:-10px;bottom:-10px}
@@ -217,6 +217,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
     <div class="stage">
       <div class="lens" id="lens">
         <div class="world" id="world"><video id="cam" playsinline muted autoplay></video><div class="nocam" id="nocam" hidden></div><div id="stickers"></div></div>
+        <div class="cropl" id="cropl" hidden><img id="cropImg" alt="" draggable="false"><div class="cbox" id="cbox"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
         <div class="dim" id="dim" hidden></div>
         <div class="pill off" id="pill"></div>
         <div class="menu" id="menu" hidden></div>
@@ -284,14 +285,13 @@ let ocr=null;
 function ocrWorker(){if(!ocr) ocr=(async()=>{if(!window.Tesseract) await new Promise((res,rej)=>{const s=document.createElement('script');s.src='vendor/ocr/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
   return Tesseract.createWorker('eng',1,{workerPath:'vendor/ocr/worker.min.js',corePath:'vendor/ocr/core',langPath:'vendor/ocr/lang',gzip:true,workerBlobURL:false})})().catch(e=>{ocr=null;throw e});return ocr}
 /* read the page under the glass, on this phone. Returns null when no words are found. */
-async function readPage(){const v=$('#cam');if(!stream||!v.videoWidth) return {err:'nocam'};
-  const vw=v.videoWidth,vh=v.videoHeight,k0=Math.min(1,1600/Math.max(vw,vh)),c=document.createElement('canvas');c.width=Math.round(vw*k0);c.height=Math.round(vh*k0);
-  const g=c.getContext('2d');g.filter='grayscale(1) contrast(1.4)';g.drawImage(v,0,0,c.width,c.height);
+async function readPage(frame,box){const bm=await createImageBitmap(frame),k0=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*k0);c.height=Math.round(bm.height*k0);
+  const g=c.getContext('2d');g.filter='grayscale(1) contrast(1.4)';g.drawImage(bm,0,0,c.width,c.height);
   const w=await ocrWorker();const {data}=await w.recognize(c);
-  /* map frame pixels to glass position (video uses object-fit: cover) */
-  const W=$('#world').offsetWidth,H=$('#world').offsetHeight,k=Math.max(W/c.width,H/c.height),ox=(W-c.width*k)/2,oy=(H-c.height*k)/2;
-  const list=(data.words||[]).map(x=>({t:clean(x.text),conf:x.confidence,x:((x.bbox.x0+x.bbox.x1)/2*k+ox)/W,y:(x.bbox.y0*k+oy)/H-.03}))
-    .filter(x=>x.conf>55&&isWord(x.t)&&x.x>.04&&x.x<.96&&x.y>.02&&x.y<.92).map(x=>({...x,l:x.t.toLowerCase()}));
+  /* the photo is exactly the glass view, so photo position = glass position; keep only words inside the crop */
+  const b=box||{x:0,y:0,w:1,h:1};
+  const list=(data.words||[]).map(x=>({t:clean(x.text),conf:x.confidence,x:(x.bbox.x0+x.bbox.x1)/2/c.width,cy:(x.bbox.y0+x.bbox.y1)/2/c.height,y:x.bbox.y0/c.height-.03}))
+    .filter(x=>x.conf>55&&isWord(x.t)&&x.x>b.x&&x.x<b.x+b.w&&x.cy>b.y&&x.cy<b.y+b.h).map(x=>({...x,l:x.t.toLowerCase()}));
   if(list.length<2) return null;
   const text=list.map(x=>x.t).join(' ');
   const seen=new Set();
@@ -377,7 +377,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='7';
+const APPV='8';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -399,28 +399,31 @@ async function saveThumb(p,frame,box){const bm=await createImageBitmap(frame),b=
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*m));c.height=Math.max(1,Math.round(sh*m));c.getContext('2d').drawImage(bm,sx,sy,sw,sh,0,0,c.width,c.height);
   const t=await new Promise(r=>c.toBlob(r,'image/jpeg',.8));p.thumb='t'+p.id;await blobPut(p.thumb,t);const old=urls.get(p.thumb);if(old) URL.revokeObjectURL(old);urls.delete(p.thumb);p.crop=b;save();renderStrip()}
 /* crop: drag the corners to fit the page, or drag the box to move it */
-async function cropPage(pi){const p=book().pages[pi],u=await blobURL(p.frame);if(!u){toast('Make stickers on this page first.');return}
-  let b={...(p.crop||{x:.06,y:.06,w:.88,h:.88})};
-  sheet(`<div class="hd"><h3>Crop the page</h3></div><div class="crop" id="crop"><img src="${u}" alt="" draggable="false"><div class="cbox" id="cbox"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div><p class="note">Drag the corners to the edges of the page.</p><div class="row"><button class="act" id="cropAll">Use all</button><button class="act main" id="cropOk">Done</button></div>`,c=>{
-    const box=c.querySelector('#cbox'),area=c.querySelector('#crop');
-    const draw=()=>{Object.assign(box.style,{left:b.x*100+'%',top:b.y*100+'%',width:b.w*100+'%',height:b.h*100+'%'})};draw();
-    let d=null;
-    area.addEventListener('pointerdown',e=>{const h=e.target.dataset.h||(e.target===box?'move':null);if(!h) return;e.preventDefault();area.setPointerCapture(e.pointerId);const r=area.getBoundingClientRect();d={h,r,sx:e.clientX,sy:e.clientY,b0:{...b}}});
-    area.addEventListener('pointermove',e=>{if(!d) return;const dx=(e.clientX-d.sx)/d.r.width,dy=(e.clientY-d.sy)/d.r.height,o=d.b0,M=.1;let x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;
-      if(d.h==='move'){const nx=Math.min(1-o.w,Math.max(0,o.x+dx)),ny=Math.min(1-o.h,Math.max(0,o.y+dy));b={...o,x:nx,y:ny};draw();return}
-      if(d.h.includes('w')) x0=Math.min(x1-M,Math.max(0,o.x+dx));if(d.h.includes('e')) x1=Math.max(x0+M,Math.min(1,o.x+o.w+dx));
-      if(d.h.includes('n')) y0=Math.min(y1-M,Math.max(0,o.y+dy));if(d.h.includes('s')) y1=Math.max(y0+M,Math.min(1,o.y+o.h+dy));
-      b={x:x0,y:y0,w:x1-x0,h:y1-y0};draw()});
-    ['pointerup','pointercancel'].forEach(ev=>area.addEventListener(ev,()=>d=null));
-    c.querySelector('#cropAll').onclick=()=>{b={x:0,y:0,w:1,h:1};draw()};
-    c.querySelector('#cropOk').onclick=async()=>{const f=await blobGet(p.frame);if(f) await saveThumb(p,f,b);closeSheet()}})}
-
+/* crop on the glass: the photo stays still in the glass, drag the corners, tap the check */
+let crop=null;
+async function startCrop(p,frameId,onDone){const u=await blobURL(frameId);if(!u) return;closeMenu();setDel(false);setZoom(1);
+  const L=$('#cropl'),box=$('#cbox');$('#cropImg').src=u;L.hidden=false;mode='crop';renderBtn();
+  crop={b:{...(p.crop&&p.crop.w<1?p.crop:{x:.05,y:.05,w:.9,h:.9})},onDone};
+  const draw=()=>{const b=crop.b;Object.assign(box.style,{left:b.x*100+'%',top:b.y*100+'%',width:b.w*100+'%',height:b.h*100+'%'})};crop.draw=draw;draw();
+  hint('Drag the corners to the page edges.',true)}
+function endCrop(ok){if(!crop) return;const c=crop;crop=null;$('#cropl').hidden=true;if(mode==='crop') mode='idle';renderBtn();hint('');if(ok) c.onDone(c.b)}
+(()=>{const L=$('#cropl');let d=null;
+  L.addEventListener('pointerdown',e=>{if(!crop) return;const h=e.target.dataset.h||(e.target.id==='cbox'?'move':null);if(!h) return;e.preventDefault();e.stopPropagation();L.setPointerCapture(e.pointerId);d={h,r:L.getBoundingClientRect(),sx:e.clientX,sy:e.clientY,b0:{...crop.b}}});
+  L.addEventListener('pointermove',e=>{if(!d||!crop) return;const dx=(e.clientX-d.sx)/d.r.width,dy=(e.clientY-d.sy)/d.r.height,o=d.b0,M=.1;let x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;
+    if(d.h==='move'){crop.b={...o,x:Math.min(1-o.w,Math.max(0,o.x+dx)),y:Math.min(1-o.h,Math.max(0,o.y+dy))};crop.draw();return}
+    if(d.h.includes('w')) x0=Math.min(x1-M,Math.max(0,o.x+dx));if(d.h.includes('e')) x1=Math.max(x0+M,Math.min(1,o.x+o.w+dx));
+    if(d.h.includes('n')) y0=Math.min(y1-M,Math.max(0,o.y+dy));if(d.h.includes('s')) y1=Math.max(y0+M,Math.min(1,o.y+o.h+dy));
+    crop.b={x:x0,y:y0,w:x1-x0,h:y1-y0};crop.draw()});
+  ['pointerup','pointercancel'].forEach(ev=>L.addEventListener(ev,()=>d=null));})();
+async function recrop(pi){const p=book().pages[pi];if(!p.frame){toast('Make stickers on this page first.');return}
+  if(S.page!==pi){S.page=pi;save();await renderStrip();renderPage()}
+  startCrop(p,p.frame,async b=>{const f=await blobGet(p.frame);if(f) await saveThumb(p,f,b)})}
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
   camOn();ocrWorker().catch(()=>{});await renderStrip();renderPage();
   hint(page().scanned?'Tap the page you are on, then hold the magnifier.':'Hold the magnifier until the ring is full. Keep the phone still.')}
-$('#backBtn').onclick=()=>{closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
+$('#backBtn').onclick=()=>{endCrop(false);closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
 function done(p){return p.scanned&&p.stickers.length&&p.stickers.every(s=>s.open)}
 const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#34C759"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
@@ -430,11 +433,11 @@ async function renderStrip(){const b=book();let h='';
   h+=`<button class="th addp" id="addPage" aria-label="Add a page"><svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" rx="4" fill="none" stroke="#636366" stroke-width="3" stroke-dasharray="7 6"/><path d="M44 42v28M30 56h28" stroke="#AEAEB2" stroke-width="5" stroke-linecap="round"/></svg><span>Add</span></button>`;
   $('#strip').innerHTML=h;const c=$('#strip .cur');if(c) c.scrollIntoView({inline:'center',block:'nearest'})}
 let thPress=null;
-$('#strip').addEventListener('pointerdown',e=>{const th=e.target.closest('.th[data-p]');if(!th) return;thPress={long:false,t:setTimeout(()=>{thPress.long=true;cropPage(+th.dataset.p)},600)}});
+$('#strip').addEventListener('pointerdown',e=>{const th=e.target.closest('.th[data-p]');if(!th) return;thPress={long:false,t:setTimeout(()=>{thPress.long=true;recrop(+th.dataset.p)},600)}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>$('#strip').addEventListener(ev,()=>{if(thPress) clearTimeout(thPress.t)}));
 $('#strip').addEventListener('scroll',()=>{if(thPress) clearTimeout(thPress.t)},{passive:true});
 $('#strip').addEventListener('contextmenu',e=>e.preventDefault());
-$('#strip').addEventListener('click',async e=>{if(thPress&&thPress.long){thPress=null;return}
+$('#strip').addEventListener('click',async e=>{if(thPress&&thPress.long){thPress=null;return}if(mode==='crop') endCrop(false);
   if(e.target.closest('#addPage')){book().pages.push({id:uid(),scanned:false,thumb:null,stickers:[],own:[]});S.page=book().pages.length-1;save();closeMenu();setDel(false);await renderStrip();renderPage();hint('New page. Hold the magnifier to make stickers.');return}
   const t=e.target.closest('.th');if(!t) return;closeMenu();setDel(false);S.page=+t.dataset.p;save();await renderStrip();renderPage();
   hint(!page().scanned?'New page. Hold the magnifier to make stickers.':shown[key()]?'':'Now hold the magnifier to show the stickers.')});
@@ -457,37 +460,42 @@ function drawStickers(stagger){const box=$('#stickers');box.innerHTML='';
 const SPARK='<svg viewBox="0 0 48 48" class="mag"><path d="M30.5 30.5l11 11" stroke="#1C1C1E" stroke-width="7.5" stroke-linecap="round"/><circle cx="20" cy="20" r="16" fill="#1C1C1E"/><circle cx="20" cy="20" r="12.2" fill="#fff"/><path d="M19.2 13.799999999999999Q20.68 19.72 26.6 21.2Q20.68 22.68 19.2 28.6Q17.72 22.68 11.799999999999999 21.2Q17.72 19.72 19.2 13.799999999999999Z" fill="#FFA41B"/><path d="M26.4 10.5Q27.02 12.98 29.5 13.6Q27.02 14.219999999999999 26.4 16.7Q25.779999999999998 14.219999999999999 23.299999999999997 13.6Q25.779999999999998 12.98 26.4 10.5Z" fill="#FFA41B"/><path d="M13.2 25Q13.6 26.6 15.2 27Q13.6 27.4 13.2 29Q12.799999999999999 27.4 11.2 27Q12.799999999999999 26.6 13.2 25Z" fill="#FFA41B"/></svg>';
 const PLUSG='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>';
 const XG='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const CHECKW='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHECK='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#000" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let mode='idle';
 function renderBtn(){const btn=$('#btn');btn.className='btn';
+  if(mode==='crop'){btn.innerHTML=CHECKW;btn.setAttribute('aria-label','Done');return}
   if(mode==='menu'){btn.classList.add('x');btn.innerHTML=XG;btn.setAttribute('aria-label','Close');return}
   if(mode==='delete'||mode.startsWith('place')){btn.classList.add('x');btn.innerHTML=mode==='delete'?CHECK:XG;btn.setAttribute('aria-label',mode==='delete'?'Done':'Cancel');return}
   if(shown[key()]){btn.innerHTML=PLUSG;btn.setAttribute('aria-label','Add')}
   else{btn.classList.add('bare');btn.innerHTML=SPARK;btn.setAttribute('aria-label',page().scanned?'Reveal stickers':'Make stickers')}}
 let hold=null;const arc=$('#ringArc'),track=$('#ringTrack'),C=2*Math.PI*44;
 const ringOff=()=>{arc.setAttribute('opacity','0');track.setAttribute('opacity','0');arc.setAttribute('stroke-dasharray','0 999')};
-function startHold(){if(mode!=='idle'||shown[key()]) return;const t0=performance.now(),dur=1200;arc.setAttribute('opacity','1');track.setAttribute('opacity','1');
+function startHold(){if(mode!=='idle'||shown[key()]) return;const t0=performance.now(),dur=450;arc.setAttribute('opacity','1');track.setAttribute('opacity','1');
   const tick=now=>{const k=Math.min(1,(now-t0)/dur);arc.setAttribute('stroke-dasharray',`${C*k} 999`);if(k<1) hold.raf=requestAnimationFrame(tick);else finishHold()};
   hold={raf:requestAnimationFrame(tick)};try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}}
 function cancelHold(){if(!hold) return;cancelAnimationFrame(hold.raf);hold=null;ringOff()}
 let busy=false;
 async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
-  if(!was){if(busy) return;busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);let r;const frame=await grabFrame();if(frame){p.frame='f'+p.id;await blobPut(p.frame,frame);urls.delete(p.frame);await saveThumb(p,frame,p.crop)}
-    try{r=await readPage()}catch(e){console.error(e);r={err:'ocr'}}
-    busy=false;$('#btn').classList.remove('busy');ringOff();
-    if(r&&r.err==='nocam'){hint('The camera is off. Allow the camera, then try again.');return}
-    if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
-    if(!r){hint('No words found. Point the glass at words and hold again.');return}
-    if(b!==book()||p!==page()) return;
-    makeStickers(p,r);if(frame) setTimeout(()=>cropPage(S.page),1400)}
-  else setTimeout(ringOff,250);
-  shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint(was?'Stickers are back. Tap one to open it.':'Stickers! Tap one to open it.')}
-
+  if(!was){if(busy) return;const frame=await grabFrame();ringOff();
+    if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
+    p.frame='f'+p.id;await blobPut(p.frame,frame);urls.delete(p.frame);save();
+    startCrop(p,p.frame,async box=>{await saveThumb(p,frame,box);if(b!==book()||p!==page()) return;
+      busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);let r;
+      try{r=await readPage(frame,box)}catch(e){console.error(e);r={err:'ocr'}}
+      busy=false;$('#btn').classList.remove('busy');
+      if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
+      if(!r){hint('No words found. Point the glass at words and hold again.');return}
+      if(b!==book()||p!==page()) return;
+      makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')});
+    return}
+  setTimeout(ringOff,250);
+  shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.')}
 const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!shown[key()]){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>{if(hold){cancelHold();hint('Keep holding until the ring is full.')}}));
 btn.addEventListener('contextmenu',e=>e.preventDefault());
-btn.addEventListener('click',()=>{if(mode==='menu'){closeMenu();return}if(mode==='delete'){setDel(false);return}
+btn.addEventListener('click',()=>{if(mode==='crop'){endCrop(true);return}if(mode==='menu'){closeMenu();return}if(mode==='delete'){setDel(false);return}
   if(mode.startsWith('place')){mode='idle';renderBtn();hint('');return}if(shown[key()]) openMenu()});
 function openMenu(){mode='menu';$('#dim').hidden=false;
   $('#menu').innerHTML=`<button class="mi" data-m="voice"><span class="st">${stickerHTML('voice')}</span><span>Voice</span></button><button class="mi" data-m="q"><span class="st">${stickerHTML('q')}</span><span>Question</span></button>`;

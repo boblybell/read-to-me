@@ -363,14 +363,20 @@ function addBookSheet(){newCover=null;
 $('#coverFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f) return;newCover=await shrink(f,600);const u=URL.createObjectURL(newCover);const p=$('#covBtn');if(p){p.style.backgroundImage=`url(${u})`;p.textContent=''}});
 async function shrink(file,max){try{const bm=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bm.width,bm.height));const c=document.createElement('canvas');c.width=bm.width*k;c.height=bm.height*k;c.getContext('2d').drawImage(bm,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/jpeg',.8))}catch(e){return file}}
 $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.estimate();est=`Using ${(q.usage/1048576).toFixed(1)} MB on this phone.`}catch(e){}
-  sheet(`<div class="hd"><h3>Family</h3></div><div class="field">Child’s name<input type="text" id="childName" maxlength="20" value="${esc(S.child||'')}" placeholder="Austin" autocomplete="off"></div><p class="note">Books, page photos, stickers and voices are saved only on this phone. They are not sent anywhere. ${est}</p><div class="row"><button class="act main" id="nameSave">Save</button></div>`,c=>{
+  sheet(`<div class="hd"><h3>Family</h3></div><div class="field">Child’s name<input type="text" id="childName" maxlength="20" value="${esc(S.child||'')}" placeholder="Austin" autocomplete="off"></div><p class="note">Books, page photos, stickers and voices are saved only on this phone. They are not sent anywhere. ${est} App version ${APPV}.</p><div class="row"><button class="act main" id="nameSave">Save</button></div>`,c=>{
     c.querySelector('#nameSave').onclick=()=>{S.child=c.querySelector('#childName').value.trim();save();renderLib();closeSheet()}},true)};
 
 /* ================= camera ================= */
 let stream=null;
-async function camOn(){if(stream) return;const v=$('#cam'),n=$('#nocam');
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false});v.srcObject=stream;n.hidden=true;await v.play().catch(()=>{})}
-  catch(e){n.hidden=false;n.textContent='The camera is off. Allow camera access for this page in your phone settings, then come back.';}}
+const APPV='5';
+async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
+  if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
+    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
+    catch(e){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false})}
+      catch(e2){n.hidden=false;n.textContent=(e2.name==='NotAllowedError'?'The camera is not allowed. On iPhone: Settings › Safari › Camera › Allow. Then close and open the app.':'The camera could not start ('+e2.name+'). Close the app and open it again.');return}}
+    if($('#glass').hidden){camOff();return}
+    v.srcObject=stream}
+  n.hidden=true;try{await v.play()}catch(e){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}}
 function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); else if(!$('#glass').hidden) camOn()});
 async function grabThumb(){const v=$('#cam');if(!stream||!v.videoWidth) return null;
@@ -533,7 +539,7 @@ let ht;function hint(t,stay){const p=$('#pill');clearTimeout(ht);if(!t){p.classL
 (async()=>{try{S=await kvGet('state')}catch(e){}
   if(!S||!S.books){S={child:'Austin',books:[sampleBook()],cur:0,page:0};save()}
   renderLib()})();
-if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 })();
 </script>
 </body></html>

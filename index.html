@@ -163,6 +163,8 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .cplay{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.25);z-index:3}
 .cplay svg{width:20px;height:20px;fill:#1C1C1E}
 .cplay.on{background:#1FC2C2}.cplay.on svg{fill:#fff}
+.lens::before{padding:0;background:none;-webkit-mask:none;mask:none;box-shadow:inset 0 0 0 6px #000,inset 1px 2px 0 6px #2c2c2e,inset -1px -2px 0 6px #1c1c1e}
+.world video{z-index:1;background:#000}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -368,7 +370,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='5';
+const APPV='6';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -376,6 +378,7 @@ async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInlin
       catch(e2){n.hidden=false;n.textContent=(e2.name==='NotAllowedError'?'The camera is not allowed. On iPhone: Settings › Safari › Camera › Allow. Then close and open the app.':'The camera could not start ('+e2.name+'). Close the app and open it again.');return}}
     if($('#glass').hidden){camOff();return}
     v.srcObject=stream}
+  setTimeout(()=>{if(stream&&!$('#glass').hidden&&!v.videoWidth){n.hidden=false;n.textContent='The camera started, but no picture came. Close the app fully and open it again.'}},4000);
   n.hidden=true;try{await v.play()}catch(e){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}}
 function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); else if(!$('#glass').hidden) camOn()});
@@ -506,7 +509,7 @@ function wireRec(c,s){c.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>
 
 /* pinch to zoom 1x-4x */
 let zoom=1;const pts=new Map();let z0=1,d0=0;
-function setZoom(z){zoom=Math.min(4,Math.max(1,z));$('#world').style.transform=`scale(${zoom})`}
+function setZoom(z){zoom=Math.min(4,Math.max(1,z));$('#world').style.transform=zoom>1?`scale(${zoom})`:'none'}
 const lens=$('#lens');
 lens.addEventListener('pointerdown',e=>{if(e.target.closest('.btnwrap')) return;pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2){const [a,b]=[...pts.values()];d0=Math.hypot(a[0]-b[0],a[1]-b[1]);z0=zoom}});
 lens.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId)) return;pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2&&d0){const [a,b]=[...pts.values()];setZoom(z0*Math.hypot(a[0]-b[0],a[1]-b[1])/d0)}});

@@ -172,6 +172,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .cbox i{position:absolute;width:30px;height:30px}
 .cbox i::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .cbox i[data-h=nw]{left:-10px;top:-10px}.cbox i[data-h=ne]{right:-10px;top:-10px}.cbox i[data-h=sw]{left:-10px;bottom:-10px}.cbox i[data-h=se]{right:-10px;bottom:-10px}
+.cropl.flash{pointer-events:none}.cropl.flash .cbox{box-shadow:0 0 0 2000px rgba(0,0,0,.25);border-color:#34C759;transition:none}.cropl.flash .cbox i{display:none}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -275,7 +276,8 @@ let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>kvSet('state'
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
 /* ================= content ================= */
-function sampleBook(){return {id:uid(),title:'The Little Fox',art:'fox',bg:'#A1CDD7',cover:null,sample:true,pages:Array.from({length:6},()=>({id:uid(),scanned:false,thumb:null,stickers:[],own:[]}))}}
+function sampleBook(){return {id:uid(),title:'The Little Fox',art:'fox',bg:'#A1CDD7',cover:null,sample:true,pages:[coverPage(),...Array.from({length:6},()=>({id:uid(),scanned:false,thumb:null,stickers:[],own:[]}))]}}
+const coverPage=()=>({id:uid(),cover:true,scanned:false,thumb:null,stickers:[],own:[]});
 /* fun facts: a sticker only when the page has one of these words */
 const FACTS={fox:'A fox uses its bushy tail as a warm blanket.',cat:'A cat sleeps for about two thirds of its life.',dog:'A dog’s nose print is unique, like a fingerprint.',bear:'A bear can smell food from far, far away.',bee:'Bees dance to tell friends where flowers are.',owl:'An owl can turn its head almost all the way round.',moon:'The Moon has no light of its own. It shines with light from the Sun.',sun:'The Sun is a star. It is the closest star to us.',star:'Some stars are much bigger than the Sun.',fish:'Some fish can change colour.',frog:'A frog drinks water through its skin.',duck:'A duck’s feathers stay dry in the water.',cow:'A cow has a best friend in the herd.',pig:'Pigs are very clever. They can learn tricks.',sheep:'Sheep can remember the faces of other sheep.',horse:'A horse can sleep standing up.',mouse:'A mouse can squeeze through a hole as small as a pencil.',rabbit:'A happy rabbit jumps and twists in the air.',bird:'Birds are the only animals with feathers.',egg:'A hen lays about one egg each day.',tree:'Some trees live for thousands of years.',snow:'Every snowflake has six sides.',rain:'Rain is made of tiny drops that join together in clouds.',sea:'Most of our planet is covered by sea.',whale:'A blue whale is the biggest animal ever.',lion:'A lion’s roar can be heard far away.',elephant:'An elephant uses its trunk like a hand.',bus:'A school bus is yellow so people can see it easily.',train:'Some trains go faster than cars.',apple:'Apples float in water.',caterpillar:'A caterpillar turns into a butterfly.',butterfly:'Butterflies taste with their feet.',spider:'A spider’s silk is very strong for its size.',snail:'A snail carries its house on its back.',dinosaur:'Birds are related to dinosaurs.',night:'Many animals wake up at night.',grass:'Grass grows from the bottom, so it keeps growing after it is cut.',flower:'Bees and butterflies help flowers make seeds.',boat:'Boats float because they push water out of the way.',car:'The first cars were slower than a horse.',ball:'Long ago, balls were made of leather.',book:'Long ago, books were written by hand, one copy at a time.'};
 const STOP=new Set('the a an and or but of to in on at by for with from up down out over under into is am are was were be been being it its he she they we you i me my your his her their our them him us this that these those there here then than so as if not no yes do does did done have has had will would can could shall should may might must just very too also all any some one two three what who whom which when where why how said says say go goes went get got see saw look looked come came like let lets oh ah'.split(' '));
@@ -285,13 +287,15 @@ let ocr=null;
 function ocrWorker(){if(!ocr) ocr=(async()=>{if(!window.Tesseract) await new Promise((res,rej)=>{const s=document.createElement('script');s.src='vendor/ocr/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
   return Tesseract.createWorker('eng',1,{workerPath:'vendor/ocr/worker.min.js',corePath:'vendor/ocr/core',langPath:'vendor/ocr/lang',gzip:true,workerBlobURL:false})})().catch(e=>{ocr=null;throw e});return ocr}
 /* read the page under the glass, on this phone. Returns null when no words are found. */
-async function readPage(frame,box){const bm=await loadImg(frame),k0=Math.min(1,1600/Math.max(bm.naturalWidth,bm.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(bm.naturalWidth*k0);c.height=Math.round(bm.naturalHeight*k0);
+/* read all words in the photo, on this phone. Positions are 0..1 of the glass view (the photo is exactly the glass view). */
+async function readWords(frame){const bm=await loadImg(frame),k0=Math.min(1,1600/Math.max(bm.naturalWidth,bm.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(bm.naturalWidth*k0);c.height=Math.round(bm.naturalHeight*k0);
   const g=c.getContext('2d');g.filter='grayscale(1) contrast(1.4)';g.drawImage(bm,0,0,c.width,c.height);
-  const w=await ocrWorker();const {data}=await w.recognize(c);
-  /* the photo is exactly the glass view, so photo position = glass position; keep only words inside the crop */
-  const b=box||{x:0,y:0,w:1,h:1};
-  const list=(data.words||[]).map(x=>({t:clean(x.text),conf:x.confidence,x:(x.bbox.x0+x.bbox.x1)/2/c.width,cy:(x.bbox.y0+x.bbox.y1)/2/c.height,y:x.bbox.y0/c.height-.03}))
-    .filter(x=>x.conf>55&&isWord(x.t)&&x.x>b.x&&x.x<b.x+b.w&&x.cy>b.y&&x.cy<b.y+b.h).map(x=>({...x,l:x.t.toLowerCase()}));
+  const w=await ocrWorker();const {data}=await w.recognize(c);const W=c.width,H=c.height;
+  return (data.words||[]).map(x=>({t:clean(x.text),conf:x.confidence,x0:x.bbox.x0/W,x1:x.bbox.x1/W,y0:x.bbox.y0/H,y1:x.bbox.y1/H}))
+    .filter(x=>x.conf>55&&isWord(x.t)).map(x=>({...x,l:x.t.toLowerCase(),x:(x.x0+x.x1)/2,cy:(x.y0+x.y1)/2,y:x.y0-.03}))}
+/* choose stickers from the words inside the crop */
+function pickStickers(words,box){const b=box||{x:0,y:0,w:1,h:1};
+  const list=words.filter(x=>x.x>b.x&&x.x<b.x+b.w&&x.cy>b.y&&x.cy<b.y+b.h);
   if(list.length<2) return null;
   const text=list.map(x=>x.t).join(' ');
   const seen=new Set();
@@ -299,6 +303,19 @@ async function readPage(frame,box){const bm=await loadImg(frame),k0=Math.min(1,1
   const vocab=list.filter(x=>x.l.length>=4&&!STOP.has(x.l)&&!FACTS[x.l]&&!seen.has(x.l)&&seen.add(x.l)).sort((a,b)=>b.l.length-a.l.length).slice(0,6);
   const first=list.reduce((a,b)=>b.y<a.y-.02||(Math.abs(a.y-b.y)<=.02&&b.x<a.x)?b:a);
   return {text,first,facts,vocab}}
+/* auto crop = the paper, helped by where the words are.
+   If the paper fills (almost) the whole view, or two pages are open, crop around the text block instead. */
+async function smartCrop(frame,words){const paper=await autoCrop(frame),area=r=>r?r.w*r.h:0;
+  let text=null;if(words&&words.length>=3){let x0=1,y0=1,x1=0,y1=0;for(const w of words){x0=Math.min(x0,w.x0);y0=Math.min(y0,w.y0);x1=Math.max(x1,w.x1);y1=Math.max(y1,w.y1)}
+    const mx=.07,my=.06;text={x:Math.max(0,x0-mx),y:Math.max(0,y0-my)};text.w=Math.min(1,x1+mx)-text.x;text.h=Math.min(1,y1+my)-text.y}
+  if(paper&&area(paper)<.85){if(!text) return paper;
+    /* keep the paper, and make sure no words are cut */
+    const x=Math.min(paper.x,text.x),y=Math.min(paper.y,text.y);return {x,y,w:Math.max(paper.x+paper.w,text.x+text.w)-x,h:Math.max(paper.y+paper.h,text.y+text.h)-y}}
+  if(text&&area(text)<.9) return text;
+  return paper}
+/* show the crop on the glass for a moment */
+function flashCrop(b){if(!b) return;const L=$('#cropl'),box=$('#cbox');$('#cropImg').removeAttribute('src');L.hidden=false;L.classList.add('flash');
+  Object.assign(box.style,{left:b.x*100+'%',top:b.y*100+'%',width:b.w*100+'%',height:b.h*100+'%'});setTimeout(()=>{if(!crop){L.hidden=true}L.classList.remove('flash')},900)}
 function makeStickers(p,r){const cl=v=>Math.min(.92,Math.max(.08,v)),W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[];
   /* keep stickers apart so each one is easy to tap */
   const put=s=>{s.x=cl(s.x);s.y=cl(s.y);if(out.every(o=>Math.hypot((o.x-s.x)*W,(o.y-s.y)*H)>54)) out.push(s)};
@@ -313,7 +330,7 @@ const shown={};
 function progress(b){
   const app=b.pages.flatMap(p=>p.stickers),all=b.pages.every(p=>p.scanned);
   const share=t=>{const xs=app.filter(s=>s.type===t);if(!xs.length) return 0;return xs.filter(s=>s.open).length/(all?xs.length:Math.max(xs.length,b.pages.length*(t==='word'?2:1)))};
-  return {narr:b.pages.filter(p=>p.own.some(o=>o.type==='voice'&&o.audio)).length/b.pages.length,word:share('word'),fact:share('fact'),qa:b.pages.some(p=>p.own.some(o=>o.type==='q'&&o.qAudio&&o.aAudio))?1:0};
+  return {narr:(()=>{const ps=b.pages.filter(p=>!p.cover);return ps.length?ps.filter(p=>p.own.some(o=>o.type==='voice'&&o.audio)).length/ps.length:0})(),word:share('word'),fact:share('fact'),qa:b.pages.some(p=>p.own.some(o=>o.type==='q'&&o.qAudio&&o.aAudio))?1:0};
 }
 let CID=0;
 const solid=T=>`<path d="${T.shape}" fill="${T.c}"/><path d="${T.g}" fill="none" stroke="${T.gOut?T.c:'#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -329,7 +346,7 @@ async function renderLib(){
   $('#libTitle').textContent=S.child?S.child+'’s Library':'My Library';
   const items=[];
   for(const [i,b] of S.books.entries()){const pr=progress(b);const cu=await blobURL(b.cover);
-    const face=cu?`<img class="cov" src="${cu}" alt="">`:b.art?`<svg class="art" viewBox="0 0 104 150" preserveAspectRatio="none"><g transform="translate(0 14)">${art[b.art](104,136)}</g><rect width="104" height="14" fill="${b.bg}"/></svg>`:'';
+    const face=b.coverData?`<img class="cov" src="${b.coverData}" alt="">`:cu?`<img class="cov" src="${cu}" alt="">`:b.art?`<svg class="art" viewBox="0 0 104 150" preserveAspectRatio="none"><g transform="translate(0 14)">${art[b.art](104,136)}</g><rect width="104" height="14" fill="${b.bg}"/></svg>`:'';
     items.push(`<div class="cell"><button class="book" data-b="${i}" aria-label="${esc(b.title)}" style="background:${b.bg}">${face}${bookClips(b).length?`<span class="cplay${bookPlay&&bookPlay.i===i?' on':''}" role="button" data-cp="${i}" aria-label="${bookPlay&&bookPlay.i===i?'Stop':'Play all recordings'}">${bookPlay&&bookPlay.i===i?STOPI:PLAYI}</span>`:''}<div class="band">${Object.keys(TYPES).map(t=>icon(t,pr[t])).join('')}</div></button></div>`)}
   items.push(`<div class="cell"><button class="add" id="addBtn" aria-label="Add a book">${PLUS}</button></div>`);
   let h='';for(let i=0;i<items.length;i+=3) h+=`<div class="shelf">${items.slice(i,i+3).join('')}<div class="ledge"></div></div>`;
@@ -366,7 +383,7 @@ function addBookSheet(){newCover=null;
   sheet(`<div class="hd"><h3>Add a book</h3></div><div class="row" style="align-items:center"><button class="covprev" id="covBtn">Tap to take a cover photo</button><div class="field" style="flex:1">Book title<input type="text" id="bkTitle" maxlength="60" placeholder="The Very Hungry Caterpillar" autocomplete="off"></div></div><div class="row"><button class="act" data-close>Cancel</button><button class="act main" id="bkSave">Add book</button></div><p class="note">The photo and everything you add stay on this phone.</p>`,c=>{
     c.querySelector('#covBtn').onclick=()=>$('#coverFile').click();
     c.querySelector('#bkSave').onclick=async()=>{const t=c.querySelector('#bkTitle').value.trim();if(!t){c.querySelector('#bkTitle').focus();return}
-      const b={id:uid(),title:t,art:null,bg:COLORS[S.books.length%COLORS.length],cover:null,pages:[{id:uid(),scanned:false,thumb:null,stickers:[],own:[]}]};
+      const b={id:uid(),title:t,art:null,bg:COLORS[S.books.length%COLORS.length],cover:null,pages:[coverPage(),{id:uid(),scanned:false,thumb:null,stickers:[],own:[]}]};
       if(newCover){b.cover='c'+b.id;await blobPut(b.cover,newCover)}
       S.books.push(b);save();closeSheet();await renderLib();openBook(S.books.length-1)}},true)}
 $('#coverFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f) return;newCover=await shrink(f,600);const u=URL.createObjectURL(newCover);const p=$('#covBtn');if(p){p.style.backgroundImage=`url(${u})`;p.textContent=''}});
@@ -377,7 +394,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='11';
+const APPV='12';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -418,7 +435,8 @@ async function autoCrop(frame){try{const im=await loadImg(frame),w=120,h=Math.ma
       for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||seen[j]||!R[j]) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;seen[j]=1;q.push(j)}}
     if(!top||cnt>top.cnt) top={cnt,x0,y0,x1,y1}}
   if(!top||top.cnt<n*.12) return null;
-  const bx=Math.max(0,(top.x0-1)/w),by=Math.max(0,(top.y0-1)/h),bw=Math.min(1,(top.x1+2)/w)-bx,bh=Math.min(1,(top.y1+2)/h)-by;
+  /* the gap closing above made the area 2 px bigger on each side; take that back */
+  const bx=Math.max(0,(top.x0+2)/w),by=Math.max(0,(top.y0+2)/h),bw=Math.min(1,(top.x1-1)/w)-bx,bh=Math.min(1,(top.y1-1)/h)-by;
   return {x:bx,y:by,w:bw,h:bh}}catch(e){return null}}
 /* crop: drag the corners to fit the page, or drag the box to move it */
 /* crop on the glass: the photo stays still in the glass, drag the corners, tap the check */
@@ -439,7 +457,7 @@ function endCrop(ok){if(!crop) return;const c=crop;crop=null;$('#cropl').hidden=
   ['pointerup','pointercancel'].forEach(ev=>L.addEventListener(ev,()=>d=null));})();
 async function recrop(pi){const p=book().pages[pi];if(!p.frame){toast('Make stickers on this page first.');return}
   if(S.page!==pi){S.page=pi;save();await renderStrip();renderPage()}
-  startCrop(p,p.frame,async b=>{const f=await blobGet(p.frame);if(f) await saveThumb(p,f,b)})}
+  startCrop(p,p.frame,async r=>{const f=await blobGet(p.frame);if(f) await savePhoto(book(),p,f,r)})}
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
@@ -451,7 +469,7 @@ const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
 async function renderStrip(){const b=book();let h='';
   for(const [i,p] of b.pages.entries()){const u=p.thumbData||await blobURL(p.thumb);
-    h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="Page ${i+1}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${i+1}</span></button>`}
+    h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="${p.cover?'Cover':'Page '+i}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${p.cover?'Cover':i}</span></button>`}
   h+=`<button class="th addp" id="addPage" aria-label="Add a page"><svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" rx="4" fill="none" stroke="#636366" stroke-width="3" stroke-dasharray="7 6"/><path d="M44 42v28M30 56h28" stroke="#AEAEB2" stroke-width="5" stroke-linecap="round"/></svg><span>Add</span></button>`;
   $('#strip').innerHTML=h;const c=$('#strip .cur');if(c) c.scrollIntoView({inline:'center',block:'nearest'})}
 $('#strip').addEventListener('click',async e=>{if(mode==='crop') endCrop(false);
@@ -498,18 +516,26 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
     if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
     p.frame='f'+p.id;await blobPut(p.frame,frame);urls.delete(p.frame);save();
     busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);
-    const box=await autoCrop(frame);try{await saveThumb(p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}
-    let r;try{r=await readPage(frame,box)}catch(e){console.error(e);r={err:'ocr'}}
+    let words=null,err=false;try{words=await readWords(frame)}catch(e){console.error(e);err=true}
+    const box=await smartCrop(frame,words);flashCrop(box);
+    try{await savePhoto(b,p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}
     busy=false;$('#btn').classList.remove('busy');
-    if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
-    if(!r){hint('No words found. Point the glass at words and hold again.');return}
+    if(err){hint('Could not read. Check the internet the first time, then try again.');return}
+    const r=pickStickers(words,box);
+    if(!r){hint(p.cover?'Cover saved. No words found here.':'No words found. Point the glass at words and hold again.');return}
     if(b!==book()||p!==page()) return;
-    makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')
+    makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint(p.cover?'Cover saved. Stickers!':'Stickers! Tap one to open it.')
     return}
   setTimeout(ringOff,250);
   /* every hold takes a fresh photo of the page, also on known pages */
-  grabFrame().then(async f=>{if(!f) return;p.frame='f'+p.id;await blobPut(p.frame,f);await saveThumb(p,f,await autoCrop(f))}).catch(e=>toast('Could not save the page photo ('+(e&&e.message||e)+').'));
+  grabFrame().then(async f=>{if(!f) return;p.frame='f'+p.id;await blobPut(p.frame,f);let words=null;try{words=await readWords(f)}catch(e){}
+    const box=await smartCrop(f,words);flashCrop(box);await savePhoto(b,p,f,box)}).catch(e=>toast('Could not save the page photo ('+(e&&e.message||e)+').'));
   shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.')}
+/* page photo; the cover photo also becomes the book cover on the shelf */
+async function savePhoto(b,p,frame,box){await saveThumb(p,frame,box);if(p.cover) b.coverData=await cropData(frame,box,480)}
+async function cropData(frame,box,max){const im=await loadImg(frame),r=box||{x:0,y:0,w:1,h:1},W=im.naturalWidth,H=im.naturalHeight,sw=r.w*W,sh=r.h*H,m=Math.min(1,max/Math.max(sw,sh));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*m));c.height=Math.max(1,Math.round(sh*m));c.getContext('2d').drawImage(im,r.x*W,r.y*H,sw,sh,0,0,c.width,c.height);
+  if(typeof frame!=='string') URL.revokeObjectURL(im.src);return c.toDataURL('image/jpeg',.8)}
 const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!shown[key()]){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>{if(hold){cancelHold();hint('Keep holding until the ring is full.')}}));
@@ -603,6 +629,7 @@ let ht;function hint(t,stay){const p=$('#pill');clearTimeout(ht);if(!t){p.classL
 /* start */
 (async()=>{try{S=await kvGet('state')}catch(e){}
   if(!S||!S.books){S={child:'Austin',books:[sampleBook()],cur:0,page:0};save()}
+  let mig=false;S.books.forEach(b=>{if(!b.pages[0]||!b.pages[0].cover){b.pages.unshift(coverPage());mig=true}});if(mig) save();
   renderLib()})();
 if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 })();

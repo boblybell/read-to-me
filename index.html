@@ -270,7 +270,7 @@ const blobPut=(id,b)=>tx('blobs','readwrite',s=>s.put(b,id));
 const blobGet=id=>tx('blobs','readonly',s=>s.get(id));
 const blobDel=id=>tx('blobs','readwrite',s=>s.delete(id));
 const urls=new Map();
-async function blobURL(id){if(!id) return null;if(urls.has(id)) return urls.get(id);const b=await blobGet(id);if(!b) return null;const u=URL.createObjectURL(b);urls.set(id,u);return u}
+async function blobURL(id){if(!id) return null;if(urls.has(id)) return urls.get(id);const b=await blobGet(id);if(!b) return null;if(typeof b==='string') return b;const u=URL.createObjectURL(b);urls.set(id,u);return u}
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>kvSet('state',S).catch(()=>toast('Could not save. The phone may be full.')),150)}
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
@@ -377,7 +377,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='9';
+const APPV='10';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -393,7 +393,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); 
 async function grabFrame(){const v=$('#cam');if(!stream||!v.videoWidth) return null;
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,m=Math.min(1,1200/Math.max(sw,sh));
   const c=document.createElement('canvas');c.width=Math.round(sw*m);c.height=Math.round(sh*m);
-  c.getContext('2d').drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.8))}
+  c.getContext('2d').drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.8)}
 /* load a saved photo into an image (works on all iPhones; no createImageBitmap) */
 function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=typeof src==='string'?src:URL.createObjectURL(src)})}
 /* the page thumbnail is kept as a small picture inside the saved state, so it always shows */
@@ -498,7 +498,7 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
     if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
     p.frame='f'+p.id;await blobPut(p.frame,frame);urls.delete(p.frame);save();
     busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);
-    const box=await autoCrop(frame);try{await saveThumb(p,frame,box)}catch(e){console.error(e)}
+    const box=await autoCrop(frame);try{await saveThumb(p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}
     let r;try{r=await readPage(frame,box)}catch(e){console.error(e);r={err:'ocr'}}
     busy=false;$('#btn').classList.remove('busy');
     if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
@@ -507,6 +507,8 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
     makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')
     return}
   setTimeout(ringOff,250);
+  /* a known page with no photo yet (scanned in an older version): take the photo now */
+  if(!p.thumbData) grabFrame().then(async f=>{if(!f) return;p.frame='f'+p.id;await blobPut(p.frame,f);await saveThumb(p,f,await autoCrop(f))}).catch(e=>toast('Could not save the page photo ('+(e&&e.message||e)+').'));
   shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.')}
 const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!shown[key()]){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});

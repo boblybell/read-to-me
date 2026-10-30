@@ -158,6 +158,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .act[disabled]{opacity:.4}
 .st.lift{z-index:6;transform:scale(1.25);transition:transform .15s;animation:none}
 .st.lift svg.b{filter:drop-shadow(0 8px 10px rgba(0,0,0,.45))}
+.btn.busy svg{animation:spin 1.2s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -260,19 +261,38 @@ let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>kvSet('state'
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
 /* ================= content ================= */
-const WORDS={fox:['fox','tail','hill','sun','den','grass'],any:['book','page','look','find','read','story','happy','big','small','home','friend','tree']};
-const FACTS={fox:['A fox uses its bushy tail as a warm blanket.','Foxes can hear a mouse under the snow.'],any:['Books were once written by hand, one copy at a time.','Your brain grows new connections each time you read.','Octopuses have three hearts.','A snail can sleep for three years.','Honey never goes bad.','Butterflies taste with their feet.','A group of owls is called a parliament.','The sun is a star.']};
-const COLORS=['#A1CDD7','#203B68','#F9E688','#269ACE','#41A67A','#5CAACC','#5AADA6','#A1579E','#F6720D'];
 function sampleBook(){return {id:uid(),title:'The Little Fox',art:'fox',bg:'#A1CDD7',cover:null,sample:true,pages:Array.from({length:6},()=>({id:uid(),scanned:false,thumb:null,stickers:[],own:[]}))}}
-function scan(b,pi){
-  const p=b.pages[pi],r=rnd(hash(p.id)),w=WORDS[b.art]||WORDS.any,f=FACTS[b.art]||FACTS.any;
-  p.scanned=true;
-  p.stickers=[
-    {id:uid(),type:'play',x:.12,y:.62,open:false},
-    {id:uid(),type:'word',x:.3+r()*.45,y:.7+r()*.12,word:w[Math.floor(r()*w.length)],open:false},
-    {id:uid(),type:'word',x:.22+r()*.55,y:.3+r()*.25,word:w[Math.floor(r()*w.length)],open:false},
-    {id:uid(),type:'fact',x:.55+r()*.3,y:.12+r()*.2,fact:f[Math.floor(r()*f.length)],open:false}];
-}
+/* fun facts: a sticker only when the page has one of these words */
+const FACTS={fox:'A fox uses its bushy tail as a warm blanket.',cat:'A cat sleeps for about two thirds of its life.',dog:'A dog’s nose print is unique, like a fingerprint.',bear:'A bear can smell food from far, far away.',bee:'Bees dance to tell friends where flowers are.',owl:'An owl can turn its head almost all the way round.',moon:'The Moon has no light of its own. It shines with light from the Sun.',sun:'The Sun is a star. It is the closest star to us.',star:'Some stars are much bigger than the Sun.',fish:'Some fish can change colour.',frog:'A frog drinks water through its skin.',duck:'A duck’s feathers stay dry in the water.',cow:'A cow has a best friend in the herd.',pig:'Pigs are very clever. They can learn tricks.',sheep:'Sheep can remember the faces of other sheep.',horse:'A horse can sleep standing up.',mouse:'A mouse can squeeze through a hole as small as a pencil.',rabbit:'A happy rabbit jumps and twists in the air.',bird:'Birds are the only animals with feathers.',egg:'A hen lays about one egg each day.',tree:'Some trees live for thousands of years.',snow:'Every snowflake has six sides.',rain:'Rain is made of tiny drops that join together in clouds.',sea:'Most of our planet is covered by sea.',whale:'A blue whale is the biggest animal ever.',lion:'A lion’s roar can be heard far away.',elephant:'An elephant uses its trunk like a hand.',bus:'A school bus is yellow so people can see it easily.',train:'Some trains go faster than cars.',apple:'Apples float in water.',caterpillar:'A caterpillar turns into a butterfly.',butterfly:'Butterflies taste with their feet.',spider:'A spider’s silk is very strong for its size.',snail:'A snail carries its house on its back.',dinosaur:'Birds are related to dinosaurs.',night:'Many animals wake up at night.',grass:'Grass grows from the bottom, so it keeps growing after it is cut.',flower:'Bees and butterflies help flowers make seeds.',boat:'Boats float because they push water out of the way.',car:'The first cars were slower than a horse.',ball:'Long ago, balls were made of leather.',book:'Long ago, books were written by hand, one copy at a time.'};
+const STOP=new Set('the a an and or but of to in on at by for with from up down out over under into is am are was were be been being it its he she they we you i me my your his her their our them him us this that these those there here then than so as if not no yes do does did done have has had will would can could shall should may might must just very too also all any some one two three what who whom which when where why how said says say go goes went get got see saw look looked come came like let lets oh ah'.split(' '));
+const clean=w=>w.replace(/^[^A-Za-z]+|[^A-Za-z’']+$/g,'');
+const isWord=w=>/^[A-Za-z][a-z’']*$/.test(w);
+let ocr=null;
+function ocrWorker(){if(!ocr) ocr=(async()=>{if(!window.Tesseract) await new Promise((res,rej)=>{const s=document.createElement('script');s.src='vendor/ocr/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+  return Tesseract.createWorker('eng',1,{workerPath:'vendor/ocr/worker.min.js',corePath:'vendor/ocr/core',langPath:'vendor/ocr/lang',gzip:true,workerBlobURL:false})})().catch(e=>{ocr=null;throw e});return ocr}
+/* read the page under the glass, on this phone. Returns null when no words are found. */
+async function readPage(){const v=$('#cam');if(!stream||!v.videoWidth) return {err:'nocam'};
+  const vw=v.videoWidth,vh=v.videoHeight,k0=Math.min(1,1600/Math.max(vw,vh)),c=document.createElement('canvas');c.width=Math.round(vw*k0);c.height=Math.round(vh*k0);
+  const g=c.getContext('2d');g.filter='grayscale(1) contrast(1.4)';g.drawImage(v,0,0,c.width,c.height);
+  const w=await ocrWorker();const {data}=await w.recognize(c);
+  /* map frame pixels to glass position (video uses object-fit: cover) */
+  const W=$('#world').offsetWidth,H=$('#world').offsetHeight,k=Math.max(W/c.width,H/c.height),ox=(W-c.width*k)/2,oy=(H-c.height*k)/2;
+  const list=(data.words||[]).map(x=>({t:clean(x.text),conf:x.confidence,x:((x.bbox.x0+x.bbox.x1)/2*k+ox)/W,y:(x.bbox.y0*k+oy)/H-.03}))
+    .filter(x=>x.conf>55&&isWord(x.t)&&x.x>.04&&x.x<.96&&x.y>.02&&x.y<.92).map(x=>({...x,l:x.t.toLowerCase()}));
+  if(list.length<2) return null;
+  const text=list.map(x=>x.t).join(' ');
+  const seen=new Set();
+  const facts=list.filter(x=>FACTS[x.l]&&!seen.has(x.l)&&seen.add(x.l)).slice(0,2);
+  const vocab=list.filter(x=>x.l.length>=4&&!STOP.has(x.l)&&!FACTS[x.l]&&!seen.has(x.l)&&seen.add(x.l)).sort((a,b)=>b.l.length-a.l.length).slice(0,6);
+  const first=list.reduce((a,b)=>b.y<a.y-.02||(Math.abs(a.y-b.y)<=.02&&b.x<a.x)?b:a);
+  return {text,first,facts,vocab}}
+function makeStickers(p,r){const cl=v=>Math.min(.92,Math.max(.08,v)),W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[];
+  /* keep stickers apart so each one is easy to tap */
+  const put=s=>{s.x=cl(s.x);s.y=cl(s.y);if(out.every(o=>Math.hypot((o.x-s.x)*W,(o.y-s.y)*H)>54)) out.push(s)};
+  put({id:uid(),type:'play',x:r.first.x-.14,y:r.first.y,open:false});
+  r.facts.forEach(x=>put({id:uid(),type:'fact',x:x.x,y:x.y,word:x.l,fact:FACTS[x.l],open:false}));
+  r.vocab.forEach(x=>put({id:uid(),type:'word',x:x.x,y:x.y,word:x.l,open:false}));
+  p.text=r.text;p.scanned=true;p.stickers=out}
 let S=null;
 const shown={};
 
@@ -342,7 +362,7 @@ async function grabThumb(){const v=$('#cam');if(!stream||!v.videoWidth) return n
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
-  camOn();await renderStrip();renderPage();
+  camOn();ocrWorker().catch(()=>{});await renderStrip();renderPage();
   hint(page().scanned?'Tap the page you are on, then hold the magnifier.':'Hold the magnifier until the ring is full. Keep the phone still.')}
 $('#backBtn').onclick=()=>{closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
 function done(p){return p.scanned&&p.stickers.length&&p.stickers.every(s=>s.open)}
@@ -389,9 +409,19 @@ function startHold(){if(mode!=='idle'||shown[key()]) return;const t0=performance
   const tick=now=>{const k=Math.min(1,(now-t0)/dur);arc.setAttribute('stroke-dasharray',`${C*k} 999`);if(k<1) hold.raf=requestAnimationFrame(tick);else finishHold()};
   hold={raf:requestAnimationFrame(tick)};try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}}
 function cancelHold(){if(!hold) return;cancelAnimationFrame(hold.raf);hold=null;ringOff()}
-async function finishHold(){hold=null;setTimeout(ringOff,250);const b=book(),p=page(),was=p.scanned;
-  if(!was){scan(b,S.page);const t=await grabThumb();if(t){p.thumb='t'+p.id;await blobPut(p.thumb,t);urls.delete(p.thumb)}}
+let busy=false;
+async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
+  if(!was){if(busy) return;busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);let r;
+    try{r=await readPage()}catch(e){console.error(e);r={err:'ocr'}}
+    busy=false;$('#btn').classList.remove('busy');ringOff();
+    if(r&&r.err==='nocam'){hint('The camera is off. Allow the camera, then try again.');return}
+    if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
+    if(!r){hint('No words found. Point the glass at words and hold again.');return}
+    if(b!==book()||p!==page()) return;
+    makeStickers(p,r);const t=await grabThumb();if(t){p.thumb='t'+p.id;await blobPut(p.thumb,t);urls.delete(p.thumb)}}
+  else setTimeout(ringOff,250);
   shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint(was?'Stickers are back. Tap one to open it.':'Stickers! Tap one to open it.')}
+
 const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!shown[key()]){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>{if(hold){cancelHold();hint('Keep holding until the ring is full.')}}));
@@ -420,7 +450,7 @@ $('#lens').addEventListener('click',e=>{
 /* audio: record and play, kept on this phone */
 let player=null;function stopAudio(){if(player){player.pause();player=null}try{speechSynthesis.cancel()}catch(e){}}
 async function play(id){stopAudio();const u=await blobURL(id);if(!u) return;player=new Audio(u);player.play().catch(()=>toast('Could not play this recording.'))}
-const say=t=>{try{stopAudio();const u=new SpeechSynthesisUtterance(t);u.rate=.8;speechSynthesis.speak(u)}catch(e){toast('This phone cannot speak here.')}};
+const say=(t,rate=.8)=>{try{stopAudio();const u=new SpeechSynthesisUtterance(t);u.rate=rate;speechSynthesis.speak(u)}catch(e){toast('This phone cannot speak here.')}};
 let rec=null;
 async function recordToggle(btnEl,onDone){
   if(rec){rec.stop();return}
@@ -439,11 +469,14 @@ function openSticker(s){if(!s) return;
   const hd=`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>${{play:'Read aloud',word:'New word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]}</h3></div>`;
   if(s.type==='play'){markOpen(s);const v=page().own.find(o=>o.type==='voice'&&o.audio);
     if(v){play(v.audio);const el=document.querySelector(`.st[data-id="${s.id}"]`);if(el){el.classList.add('playing');setTimeout(()=>el.classList.remove('playing'),3000)}return}
+    if(page().text){say(page().text,.85);return}
     sheet(`${hd}<p>No family voice on this page yet. Tap the plus, choose Voice and read this page aloud. Then this sticker plays it.</p><div class="row"><button class="act main" data-close>OK</button></div>`);return}
-  if(s.type==='word'){markOpen(s);sheet(`${hd}<div class="word" aria-label="${esc(s.word)}">${colourWord(s.word)}</div><div class="row"><button class="act" id="slow">Say it slowly</button><button class="act main" data-close>Got it</button></div><p class="note">Blue letters are consonants. Red letters are vowels.</p>`,c=>{c.querySelector('#slow').onclick=()=>say(s.word.split('').join(' ')+'. '+s.word)});return}
+  if(s.type==='word'){markOpen(s);sheet(`${hd}<div class="word" aria-label="${esc(s.word)}">${colourWord(s.word)}</div><p id="def" class="note">${s.def?esc(s.def):''}</p><div class="row"><button class="act" id="slow">Say it slowly</button><button class="act main" data-close>Got it</button></div><p class="note">Blue letters are consonants. Red letters are vowels.</p>`,c=>{c.querySelector('#slow').onclick=()=>say(s.word.split('').join(' ')+'. '+s.word);if(!s.def) define(s)});return}
   if(s.type==='fact'){markOpen(s);sheet(`${hd}<p>${esc(s.fact)}</p><div class="row"><button class="act" id="hear">Hear it</button><button class="act main" data-close>Wow!</button></div>`,c=>{c.querySelector('#hear').onclick=()=>say(s.fact)});return}
   const rows=s.type==='voice'?recRow('Read this part','audio' in s&&s.audio,'audio',s):recRow('Child’s question',s.qAudio,'qAudio',s)+recRow('Family answer',s.aAudio,'aAudio',s);
   sheet(`${hd}${rows}<div class="row"><button class="act main" data-close>Done</button></div><p class="note">Recordings stay on this phone.</p>`,c=>wireRec(c,s))}
+async function define(s){try{const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(s.word));if(!r.ok) return;const j=await r.json();
+  const d=j[0]&&j[0].meanings&&j[0].meanings[0]&&j[0].meanings[0].definitions[0]&&j[0].meanings[0].definitions[0].definition;if(!d) return;s.def=d;save();const el=document.querySelector('#def');if(el) el.textContent=d}catch(e){}}
 function wireRec(c,s){c.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>recordToggle(b,async id=>{const f=b.dataset.rec;if(s[f]) blobDel(s[f]).catch(()=>{});s[f]=id;save();renderStrip();openSticker(s)}));
   c.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>play(s[b.dataset.play]))}
 

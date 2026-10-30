@@ -377,7 +377,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='10';
+const APPV='11';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -507,8 +507,8 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
     makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')
     return}
   setTimeout(ringOff,250);
-  /* a known page with no photo yet (scanned in an older version): take the photo now */
-  if(!p.thumbData) grabFrame().then(async f=>{if(!f) return;p.frame='f'+p.id;await blobPut(p.frame,f);await saveThumb(p,f,await autoCrop(f))}).catch(e=>toast('Could not save the page photo ('+(e&&e.message||e)+').'));
+  /* every hold takes a fresh photo of the page, also on known pages */
+  grabFrame().then(async f=>{if(!f) return;p.frame='f'+p.id;await blobPut(p.frame,f);await saveThumb(p,f,await autoCrop(f))}).catch(e=>toast('Could not save the page photo ('+(e&&e.message||e)+').'));
   shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.')}
 const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!shown[key()]){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});

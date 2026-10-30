@@ -159,6 +159,9 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .st.lift{z-index:6;transform:scale(1.25);transition:transform .15s;animation:none}
 .st.lift svg.b{filter:drop-shadow(0 8px 10px rgba(0,0,0,.45))}
 .btn.busy svg{animation:spin 1.2s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.cplay{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.94);display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.25);z-index:3}
+.cplay svg{width:20px;height:20px;fill:#1C1C1E}
+.cplay.on{background:#1FC2C2}.cplay.on svg{fill:#fff}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -317,16 +320,30 @@ async function renderLib(){
   const items=[];
   for(const [i,b] of S.books.entries()){const pr=progress(b);const cu=await blobURL(b.cover);
     const face=cu?`<img class="cov" src="${cu}" alt="">`:b.art?`<svg class="art" viewBox="0 0 104 150" preserveAspectRatio="none"><g transform="translate(0 14)">${art[b.art](104,136)}</g><rect width="104" height="14" fill="${b.bg}"/></svg>`:'';
-    items.push(`<div class="cell"><button class="book" data-b="${i}" aria-label="${esc(b.title)}" style="background:${b.bg}">${face}<div class="band">${Object.keys(TYPES).map(t=>icon(t,pr[t])).join('')}</div></button></div>`)}
+    items.push(`<div class="cell"><button class="book" data-b="${i}" aria-label="${esc(b.title)}" style="background:${b.bg}">${face}${bookClips(b).length?`<span class="cplay${bookPlay&&bookPlay.i===i?' on':''}" role="button" data-cp="${i}" aria-label="${bookPlay&&bookPlay.i===i?'Stop':'Play all recordings'}">${bookPlay&&bookPlay.i===i?STOPI:PLAYI}</span>`:''}<div class="band">${Object.keys(TYPES).map(t=>icon(t,pr[t])).join('')}</div></button></div>`)}
   items.push(`<div class="cell"><button class="add" id="addBtn" aria-label="Add a book">${PLUS}</button></div>`);
   let h='';for(let i=0;i<items.length;i+=3) h+=`<div class="shelf">${items.slice(i,i+3).join('')}<div class="ledge"></div></div>`;
   if(S.books.length<=1&&S.books.every(b=>b.sample)) h+='<div class="welcome">Tap the plus to add your own book. Take a photo of its cover.</div>';
   $('#shelves').innerHTML=h;
 }
+
+const bookClips=b=>b.pages.flatMap(p=>[...p.own].sort((a,c)=>a.y-c.y||a.x-c.x).flatMap(o=>o.type==='voice'?[o.audio]:[o.qAudio,o.aAudio])).filter(Boolean);
+const PLAYI='<svg viewBox="0 0 24 24"><path d="M9 6.8v10.4c0 .8.9 1.3 1.6.8l7.6-5.2c.6-.4.6-1.2 0-1.6L10.6 6c-.7-.5-1.6 0-1.6.8z"/></svg>';
+const STOPI='<svg viewBox="0 0 24 24"><rect x="7.5" y="7.5" width="9" height="9" rx="1.8"/></svg>';
+let bookPlay=null;
+function stopBook(){if(!bookPlay) return;const i=bookPlay.i;bookPlay=null;if(player){player.pause();player=null}
+  const el=document.querySelector(`.cplay[data-cp="${i}"]`);if(el){el.innerHTML=PLAYI;el.classList.remove('on');el.setAttribute('aria-label','Play all recordings')}}
+async function playBook(i){const same=bookPlay&&bookPlay.i===i;stopBook();stopAudio();if(same) return;
+  const clips=bookClips(S.books[i]);if(!clips.length) return;const run={i,n:0};bookPlay=run;
+  const el=document.querySelector(`.cplay[data-cp="${i}"]`);if(el){el.innerHTML=STOPI;el.classList.add('on');el.setAttribute('aria-label','Stop')}
+  const next=async()=>{if(bookPlay!==run) return;if(run.n>=clips.length){stopBook();return}
+    const u=await blobURL(clips[run.n++]);if(!u){next();return}player=new Audio(u);player.onended=next;player.onerror=next;player.play().catch(()=>{toast('Could not play. Tap play again.');stopBook()})};
+  next()}
 let press;
 $('#shelves').addEventListener('pointerdown',e=>{const b=e.target.closest('.book');if(!b) return;press={t:setTimeout(()=>{press.long=true;askDelete(+b.dataset.b)},650),long:false}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>$('#shelves').addEventListener(ev,()=>{if(press) clearTimeout(press.t)}));
 $('#shelves').addEventListener('click',e=>{
+  const cp=e.target.closest('.cplay');if(cp){if(press&&press.long){press=null;return}playBook(+cp.dataset.cp);return}
   const b=e.target.closest('.book');if(b){if(press&&press.long){press=null;return}openBook(+b.dataset.b);return}
   if(e.target.closest('#addBtn')) addBookSheet();
 });
@@ -361,7 +378,7 @@ async function grabThumb(){const v=$('#cam');if(!stream||!v.videoWidth) return n
 
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
-async function openBook(i){S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
+async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
   camOn();ocrWorker().catch(()=>{});await renderStrip();renderPage();
   hint(page().scanned?'Tap the page you are on, then hold the magnifier.':'Hold the magnifier until the ring is full. Keep the phone still.')}
 $('#backBtn').onclick=()=>{closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};

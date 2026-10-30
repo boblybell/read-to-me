@@ -285,7 +285,7 @@ let ocr=null;
 function ocrWorker(){if(!ocr) ocr=(async()=>{if(!window.Tesseract) await new Promise((res,rej)=>{const s=document.createElement('script');s.src='vendor/ocr/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
   return Tesseract.createWorker('eng',1,{workerPath:'vendor/ocr/worker.min.js',corePath:'vendor/ocr/core',langPath:'vendor/ocr/lang',gzip:true,workerBlobURL:false})})().catch(e=>{ocr=null;throw e});return ocr}
 /* read the page under the glass, on this phone. Returns null when no words are found. */
-async function readPage(frame,box){const bm=await createImageBitmap(frame),k0=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*k0);c.height=Math.round(bm.height*k0);
+async function readPage(frame,box){const bm=await loadImg(frame),k0=Math.min(1,1600/Math.max(bm.naturalWidth,bm.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(bm.naturalWidth*k0);c.height=Math.round(bm.naturalHeight*k0);
   const g=c.getContext('2d');g.filter='grayscale(1) contrast(1.4)';g.drawImage(bm,0,0,c.width,c.height);
   const w=await ocrWorker();const {data}=await w.recognize(c);
   /* the photo is exactly the glass view, so photo position = glass position; keep only words inside the crop */
@@ -377,7 +377,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='8';
+const APPV='9';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -394,10 +394,32 @@ async function grabFrame(){const v=$('#cam');if(!stream||!v.videoWidth) return n
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,m=Math.min(1,1200/Math.max(sw,sh));
   const c=document.createElement('canvas');c.width=Math.round(sw*m);c.height=Math.round(sh*m);
   c.getContext('2d').drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,'image/jpeg',.8))}
-async function saveThumb(p,frame,box){const bm=await createImageBitmap(frame),b=box||{x:0,y:0,w:1,h:1};
-  const sx=b.x*bm.width,sy=b.y*bm.height,sw=b.w*bm.width,sh=b.h*bm.height,m=Math.min(1,320/Math.max(sw,sh));
-  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*m));c.height=Math.max(1,Math.round(sh*m));c.getContext('2d').drawImage(bm,sx,sy,sw,sh,0,0,c.width,c.height);
-  const t=await new Promise(r=>c.toBlob(r,'image/jpeg',.8));p.thumb='t'+p.id;await blobPut(p.thumb,t);const old=urls.get(p.thumb);if(old) URL.revokeObjectURL(old);urls.delete(p.thumb);p.crop=b;save();renderStrip()}
+/* load a saved photo into an image (works on all iPhones; no createImageBitmap) */
+function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=typeof src==='string'?src:URL.createObjectURL(src)})}
+/* the page thumbnail is kept as a small picture inside the saved state, so it always shows */
+async function saveThumb(p,frame,box){const im=await loadImg(frame),b=box||{x:0,y:0,w:1,h:1},W=im.naturalWidth,H=im.naturalHeight;
+  const sx=b.x*W,sy=b.y*H,sw=b.w*W,sh=b.h*H,m=Math.min(1,240/Math.max(sw,sh));
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*m));c.height=Math.max(1,Math.round(sh*m));c.getContext('2d').drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
+  if(typeof frame!=='string') URL.revokeObjectURL(im.src);
+  p.thumbData=c.toDataURL('image/jpeg',.75);p.crop=b;save();await renderStrip()}
+/* auto crop: find the largest bright area (the paper) in the photo */
+async function autoCrop(frame){try{const im=await loadImg(frame),w=120,h=Math.max(1,Math.round(w*im.naturalHeight/im.naturalWidth)),c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');g.drawImage(im,0,0,w,h);URL.revokeObjectURL(im.src);const d=g.getImageData(0,0,w,h).data,n=w*h,L=new Uint8Array(n),hist=new Array(256).fill(0);
+  for(let i=0;i<n;i++){const v=(d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11)|0;L[i]=v;hist[v]++}
+  /* Otsu threshold between paper and background */
+  let sum=0;for(let i=0;i<256;i++) sum+=i*hist[i];let sB=0,wB=0,best=0,th=128;
+  for(let i=0;i<256;i++){wB+=hist[i];if(!wB) continue;const wF=n-wB;if(!wF) break;sB+=i*hist[i];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>best){best=v;th=i}}
+  /* close small gaps (text) so the page is one area */
+  const B=new Uint8Array(n);for(let i=0;i<n;i++) B[i]=L[i]>th?1:0;
+  const R=new Uint8Array(n);for(let y=0;y<h;y++) for(let x=0;x<w;x++){let on=0;for(let dy=-2;dy<=2&&!on;dy++) for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<w&&yy<h&&B[yy*w+xx]){on=1;break}}R[y*w+x]=on}
+  const seen=new Uint8Array(n);let top=null;
+  for(let s=0;s<n;s++){if(!R[s]||seen[s]) continue;const q=[s];seen[s]=1;let cnt=0,x0=w,y0=h,x1=0,y1=0;
+    while(q.length){const i=q.pop(),x=i%w,y=(i/w)|0;cnt++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||seen[j]||!R[j]) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;seen[j]=1;q.push(j)}}
+    if(!top||cnt>top.cnt) top={cnt,x0,y0,x1,y1}}
+  if(!top||top.cnt<n*.12) return null;
+  const bx=Math.max(0,(top.x0-1)/w),by=Math.max(0,(top.y0-1)/h),bw=Math.min(1,(top.x1+2)/w)-bx,bh=Math.min(1,(top.y1+2)/h)-by;
+  return {x:bx,y:by,w:bw,h:bh}}catch(e){return null}}
 /* crop: drag the corners to fit the page, or drag the box to move it */
 /* crop on the glass: the photo stays still in the glass, drag the corners, tap the check */
 let crop=null;
@@ -428,16 +450,11 @@ function done(p){return p.scanned&&p.stickers.length&&p.stickers.every(s=>s.open
 const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#34C759"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
 async function renderStrip(){const b=book();let h='';
-  for(const [i,p] of b.pages.entries()){const u=await blobURL(p.thumb);
+  for(const [i,p] of b.pages.entries()){const u=p.thumbData||await blobURL(p.thumb);
     h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="Page ${i+1}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${i+1}</span></button>`}
   h+=`<button class="th addp" id="addPage" aria-label="Add a page"><svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" rx="4" fill="none" stroke="#636366" stroke-width="3" stroke-dasharray="7 6"/><path d="M44 42v28M30 56h28" stroke="#AEAEB2" stroke-width="5" stroke-linecap="round"/></svg><span>Add</span></button>`;
   $('#strip').innerHTML=h;const c=$('#strip .cur');if(c) c.scrollIntoView({inline:'center',block:'nearest'})}
-let thPress=null;
-$('#strip').addEventListener('pointerdown',e=>{const th=e.target.closest('.th[data-p]');if(!th) return;thPress={long:false,t:setTimeout(()=>{thPress.long=true;recrop(+th.dataset.p)},600)}});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>$('#strip').addEventListener(ev,()=>{if(thPress) clearTimeout(thPress.t)}));
-$('#strip').addEventListener('scroll',()=>{if(thPress) clearTimeout(thPress.t)},{passive:true});
-$('#strip').addEventListener('contextmenu',e=>e.preventDefault());
-$('#strip').addEventListener('click',async e=>{if(thPress&&thPress.long){thPress=null;return}if(mode==='crop') endCrop(false);
+$('#strip').addEventListener('click',async e=>{if(mode==='crop') endCrop(false);
   if(e.target.closest('#addPage')){book().pages.push({id:uid(),scanned:false,thumb:null,stickers:[],own:[]});S.page=book().pages.length-1;save();closeMenu();setDel(false);await renderStrip();renderPage();hint('New page. Hold the magnifier to make stickers.');return}
   const t=e.target.closest('.th');if(!t) return;closeMenu();setDel(false);S.page=+t.dataset.p;save();await renderStrip();renderPage();
   hint(!page().scanned?'New page. Hold the magnifier to make stickers.':shown[key()]?'':'Now hold the magnifier to show the stickers.')});
@@ -480,14 +497,14 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   if(!was){if(busy) return;const frame=await grabFrame();ringOff();
     if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
     p.frame='f'+p.id;await blobPut(p.frame,frame);urls.delete(p.frame);save();
-    startCrop(p,p.frame,async box=>{await saveThumb(p,frame,box);if(b!==book()||p!==page()) return;
-      busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);let r;
-      try{r=await readPage(frame,box)}catch(e){console.error(e);r={err:'ocr'}}
-      busy=false;$('#btn').classList.remove('busy');
-      if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
-      if(!r){hint('No words found. Point the glass at words and hold again.');return}
-      if(b!==book()||p!==page()) return;
-      makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')});
+    busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);
+    const box=await autoCrop(frame);try{await saveThumb(p,frame,box)}catch(e){console.error(e)}
+    let r;try{r=await readPage(frame,box)}catch(e){console.error(e);r={err:'ocr'}}
+    busy=false;$('#btn').classList.remove('busy');
+    if(r&&r.err==='ocr'){hint('Could not read. Check the internet the first time, then try again.');return}
+    if(!r){hint('No words found. Point the glass at words and hold again.');return}
+    if(b!==book()||p!==page()) return;
+    makeStickers(p,r);shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')
     return}
   setTimeout(ringOff,250);
   shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.')}
@@ -499,13 +516,14 @@ btn.addEventListener('click',()=>{if(mode==='crop'){endCrop(true);return}if(mode
   if(mode.startsWith('place')){mode='idle';renderBtn();hint('');return}if(shown[key()]) openMenu()});
 function openMenu(){mode='menu';$('#dim').hidden=false;
   $('#menu').innerHTML=`<button class="mi" data-m="voice"><span class="st">${stickerHTML('voice')}</span><span>Voice</span></button><button class="mi" data-m="q"><span class="st">${stickerHTML('q')}</span><span>Question</span></button>`;
-  $('#menu2').innerHTML=`<button class="mini" data-m="regen"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2-4.9M19 4v4h-4"/></svg></b><span>Regenerate</span></button><button class="mini" data-m="del"><b><svg viewBox="0 0 24 24" fill="none" stroke="#D7372F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg></b><span>Delete</span></button>`;
+  $('#menu2').innerHTML=`<button class="mini" data-m="crop"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2.5v13.5a1.5 1.5 0 0 0 1.5 1.5h13.5M2.5 6.5H16a1.5 1.5 0 0 1 1.5 1.5v13.5"/></svg></b><span>Crop</span></button><button class="mini" data-m="regen"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2-4.9M19 4v4h-4"/></svg></b><span>Regenerate</span></button><button class="mini" data-m="del"><b><svg viewBox="0 0 24 24" fill="none" stroke="#D7372F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg></b><span>Delete</span></button>`;
   $('#menu').hidden=false;$('#menu2').hidden=false;renderBtn()}
 function closeMenu(){if(mode==='menu') mode='idle';$('#dim').hidden=true;$('#menu').hidden=true;$('#menu2').hidden=true;renderBtn()}
 document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m) return;const k=m.dataset.m;closeMenu();
   if(k==='voice'||k==='q'){mode='place:'+k;renderBtn();hint('Tap the page to put it there.',true)}
   if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;delete shown[key()];save();drawStickers(false);renderBtn();renderStrip();hint('Your own stickers stay. Hold the magnifier to scan again.')}
-  if(k==='del') setDel(true)});
+  if(k==='del') setDel(true);
+  if(k==='crop') recrop(S.page)});
 function setDel(on){mode=on?'delete':(mode==='delete'?'idle':mode);$('#stickers').classList.toggle('delmode',on);renderBtn();if(on) hint('Tap a sticker to remove it. Tap the button to finish.',true);else hint('')}
 $('#lens').addEventListener('click',e=>{
   if(e.target.closest('.btnwrap,.menu,.menu2')) return;const st=e.target.closest('.st');

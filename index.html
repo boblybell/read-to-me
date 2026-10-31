@@ -453,7 +453,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='52';
+const APPV='54';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -555,7 +555,7 @@ async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save(
   hint(page().scanned?'Point the glass at a page. Its stickers come by themselves.':'Hold the magnifier until the ring is full. Keep the phone still.')}
 $('#backBtn').onclick=()=>{$('#glass').classList.remove('full');endCrop(false);closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
 /* green check = page scanned and stickers appeared (Bell 31 Oct 2026; was: all stickers opened) */
-function done(p){return !!(p.scanned&&p.stickers.length)}
+function done(p){return !!p.scanned}
 const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#34C759"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
 /* progress row under the title: the cover icons with how many are done */
@@ -641,7 +641,7 @@ function inv3(m){const [a,b,c,d,e,f,g,h,i]=m,A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g,D=
 /* page place (0..1 of the page photo) -> glass place (0..1 of the world), and back */
 function toWorld(p,x,y){const r=trk.refs.get(p.id);if(!trk.H||!r||!trk.cv) return null;const q=mapPt(trk.H,x*r.w,y*r.h);return [q[0]/trk.cv.w,q[1]/trk.cv.h]}
 function toPage(p,x,y){const r=trk.refs.get(p.id),hi=trk.H&&inv3(trk.H);if(!hi||!r||!trk.cv) return null;const q=mapPt(hi,x*trk.cv.w,y*trk.cv.h);return [q[0]/r.w,q[1]/r.h]}
-const tracked=()=>trk.page===S.page&&trk.miss<3&&!!trk.H;
+const tracked=()=>trk.page===S.page&&trk.miss<6&&!!trk.H;
 function liveFrame(){const v=$('#cam');if(!stream||!v.videoWidth||v.paused) return null;
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k;
   const w=TW,h=Math.round(TW*H/W),[c,x]=trk.can&&trk.can[0].width===w&&trk.can[0].height===h?trk.can:(trk.can=canvasOf(w,h));
@@ -649,9 +649,9 @@ function liveFrame(){const v=$('#cam');if(!stream||!v.videoWidth||v.paused) retu
 function placeStickers(){const box=$('#stickers'),p=page(),on=tracked();box.classList.toggle('lost',!on);if(!on) return;
   box.querySelectorAll('.st').forEach(el=>{if(drag&&drag.on&&drag.st===el) return;const s=allStickers().find(s=>s.id===el.dataset.id);if(!s) return;
     const q=toWorld(p,s.x,s.y);if(!q) return;
-    /* steady stickers: small shakes of a few pixels are ignored, medium moves are eased, big moves jump (Bell 31 Oct 2026) */
+    /* steady stickers: shakes under 14 px are ignored, moves under 90 px are eased, big moves jump; a short miss does not hide them (Bell 31 Oct 2026) */
     const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight,c=el._p;
-    if(c){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<6) return;if(dd<50){q[0]=c[0]+(q[0]-c[0])*.35;q[1]=c[1]+(q[1]-c[1])*.35}}
+    if(c){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<14) return;if(dd<90){q[0]=c[0]+(q[0]-c[0])*.25;q[1]=c[1]+(q[1]-c[1])*.25}}
     el._p=q;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)})}
 async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null) return;
   try{await loadFeat();const f=liveFrame();
@@ -715,13 +715,14 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   if(err){hint(err.message==='timeout'?'Reading took too long. Hold again.':'Could not read ('+(err.message||'the reader did not load')+'). Hold again.');return}
   const better=await smartCrop(frame,words);if(JSON.stringify(better)!==JSON.stringify(box)){box=better;try{await savePhoto(b,p,frame,box)}catch(e){}}
   const r=pickStickers(words,box);
-  if(!r){hint(p.cover?'Cover saved.':'No words found. Point the glass at words and hold again.');return}
   if(b!==book()||p!==page()) return;
   /* own stickers kept from before: move them onto the new photo */
   if(tracked()) p.own.forEach(o=>{const q=toWorld(p,o.x,o.y);if(q){o.x=q[0];o.y=q[1]}});
-  makeStickers(p,r);forget(p);await pageRef(p);const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight;
+  /* a page with no words (only a picture or a number) is still saved, so the plus can add a voice or a question (Bell 31 Oct 2026) */
+  if(r) makeStickers(p,r);else{p.text='';p.scanned=true;p.stickers=[]}
+  forget(p);await pageRef(p);const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight;
   trk.cv={w:TW,h:Math.round(TW*Hh/W)};trk.page=S.page;trk.H=[1,0,0,0,1,0,0,0,1];trk.miss=0;trk.hits=2;
-  shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers! Tap one to open it.')}
+  shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint(r?'Stickers! Tap one to open it.':'Page saved. There are no words to read here. Tap + to add a voice or a question.')}
 /* page photo; the cover photo also becomes the book cover on the shelf */
 async function savePhoto(b,p,frame,box){await saveThumb(p,frame,box);if(p.cover) b.coverData=await cropData(frame,box,480)}
 async function cropData(frame,box,max){const im=await loadImg(frame),r=box||{x:0,y:0,w:1,h:1},W=im.naturalWidth,H=im.naturalHeight,sw=r.w*W,sh=r.h*H,m=Math.min(1,max/Math.max(sw,sh));

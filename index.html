@@ -188,6 +188,12 @@ body{margin:0}
 #glass .prog .li{width:20px;height:20px}
 #glass .prog b{font:500 14px/1 var(--ui);color:#fff;font-variant-numeric:tabular-nums}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
+/* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
+   status bar, but the page starts at the very top. Add the status bar height so the app reaches the bottom.
+   body must not clip (overflow visible); html stops scrolling. (Bell 31 Oct 2026: 47 px band at the bottom) */
+html{overflow:hidden}
+body{overflow:visible}
+#app{height:calc(100% + env(safe-area-inset-top,0px))}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -410,7 +416,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='35';
+const APPV='36';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

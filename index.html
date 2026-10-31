@@ -230,6 +230,29 @@ body{margin:0}
 #glass.full .menu2{bottom:36px}
 #glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
 /* read-aloud sticker grows into a teal pill with two buttons: play/stop and record (Bell 31 Oct 2026) */
+#vm{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.3)}
+#vm[hidden]{display:none}
+.vmp{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:#1C1C1E;color:#fff;border-radius:40px;padding:10px 24px 26px;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:vmup .28s cubic-bezier(.2,.9,.3,1);transition:transform .15s}
+@keyframes vmup{from{transform:translateY(110%)}}
+.vmp .gr{width:42px;height:5px;border-radius:3px;background:#5A5A5E;margin:0 auto 18px;padding:10px 0;background-clip:content-box;box-sizing:content-box;touch-action:none}
+.vmp .vt{margin:0;font:800 23px/29px var(--num);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vmp .vt.l{text-align:left}
+.vmp .vtm{text-align:center;color:#8E8E93;font:400 19px/26px var(--ui);font-variant-numeric:tabular-nums;margin-top:4px}
+.vmp .vwave{display:block;width:calc(100% + 48px);margin:26px -24px 22px;height:120px}
+.vmp .vstopw{display:grid;place-items:center}
+.vmp .vstop{width:74px;height:74px;border-radius:50%;border:2.5px solid #3A3A3C;display:grid;place-items:center;background:none}
+.vmp .vstop i{width:30px;height:30px;border-radius:7px;background:#EB5545}
+.vmp .vs{color:#8E8E93;font:400 17px/24px var(--ui);margin-top:2px}
+.vmp .vbar{position:relative;height:7px;border-radius:4px;background:#3A3A3C;margin:30px 0 8px;touch-action:none}
+.vmp .vbar::after{content:"";position:absolute;inset:-14px 0}
+.vmp .vbar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;background:#fff}
+.vmp .vtimes{display:flex;justify-content:space-between;color:#8E8E93;font:400 14px/18px var(--ui);font-variant-numeric:tabular-nums}
+.vmp .vctl{display:flex;align-items:center;justify-content:space-between;margin-top:22px}
+.vmp .vi{width:46px;height:46px;display:grid;place-items:center;color:#fff;background:none;border:0;padding:0}
+.vmp .vi svg{width:34px;height:34px}
+.vmp .vi.big svg{width:44px;height:44px}
+.vmp .vi.blue{color:#3B82F6}
+.vmp .vi:disabled{opacity:.3}
 .nfly{position:absolute;z-index:4;display:flex;align-items:center;gap:4px;height:46px;padding:3px;border-radius:23px;background:#1FC2C2;box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translate(-23px,-23px);transform-origin:23px 50%;animation:pillgrow .22s ease-out both}
 .nfly.flip{transform:translate(calc(-100% + 23px),-23px);transform-origin:calc(100% - 23px) 50%;flex-direction:row-reverse}
 @keyframes pillgrow{from{clip-path:inset(0 calc(100% - 46px) 0 0 round 23px)}to{clip-path:inset(0 0 0 0 round 23px)}}
@@ -491,7 +514,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='63';
+const APPV='64';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -634,7 +657,7 @@ function stillRect(){const el=$('#still'),g=$('#glass'),W=$('#world').offsetWidt
 function layoutStill(){const el=$('#still');if(!stillOn()){$('#world').classList.remove('stillmode');return}const r=stillRect(),b=r.b;
   Object.assign(el.style,{left:r.l+'px',top:r.t+'px',width:r.dw+'px',height:r.dh+'px',clipPath:`inset(${b.y*r.dh}px ${(1-b.x-b.w)*r.dw}px ${(1-b.y-b.h)*r.dh}px ${b.x*r.dw}px round 6px)`});$('#world').classList.add('stillmode')}
 addEventListener('resize',()=>{if(!S||S.cur==null||$('#glass').hidden) return;layoutStill();placeStickers()});
-async function renderPage(){$('#stickers').innerHTML='';setZoom(1);renderBtn();const p=page();
+async function renderPage(){vmClose();$('#stickers').innerHTML='';setZoom(1);renderBtn();const p=page();
   if(p.scanned){await showStill();if(p!==page()) return;drawStickers(!shown[key()]);shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers(false)}
   placeStickers()}
 const allStickers=()=>[...page().stickers,...page().own];
@@ -741,7 +764,7 @@ async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null
         if(found!==trk.page){trk.page=found;trk.hits=1}else trk.hits++;trk.H=H;
         /* a new page picked in the strip stays picked a while, so the parent can turn to it and scan */
         const fresh=!page().scanned&&performance.now()-trk.manualAt<6000;
-        if(found!==S.page&&trk.hits>=(page().scanned?2:12)&&!fresh&&performance.now()-trk.manualAt>1500){S.page=found;save();await renderStrip();renderPage();hint('')}}
+        if(found!==S.page&&!vm&&trk.hits>=(page().scanned?2:12)&&!fresh&&performance.now()-trk.manualAt>1500){S.page=found;save();await renderStrip();renderPage();hint('')}}
       else{trk.miss++;if(trk.miss>=3){trk.hits=0}}
       if(page().scanned&&tracked()&&!shown[key()]){shown[key()]=true;drawStickers(true)}
       placeStickers()}}
@@ -834,12 +857,78 @@ $('#lens').addEventListener('click',e=>{
   if(mode==='idle'&&!st&&nfly){closeFly();return}
   if(mode==='idle'&&!st&&!e.target.closest('.nocam')&&performance.now()-pinchAt>400){$('#glass').classList.toggle('full');layoutStill();placeStickers()}});
 
+/* ===== voice panels like the iOS Voice Memos app (Bell 31 Oct 2026) =====
+   tap the read-aloud sticker or a Voice sticker = playback panel; red record = record panel.
+   title = book title + page number. Recordings stay on this phone. */
+const VMI={
+  back:'<svg viewBox="0 0 32 32"><path d="M9.5 9.5A9.5 9.5 0 1 1 6.6 17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M10.6 4.2l-1.6 5.8 5.8 1.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text x="16.2" y="21" text-anchor="middle" font-size="9.5" font-weight="800" fill="currentColor" font-family="Figtree,sans-serif">15</text></svg>',
+  fwd:'<svg viewBox="0 0 32 32"><path d="M22.5 9.5A9.5 9.5 0 1 0 25.4 17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M21.4 4.2l1.6 5.8-5.8 1.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text x="15.8" y="21" text-anchor="middle" font-size="9.5" font-weight="800" fill="currentColor" font-family="Figtree,sans-serif">15</text></svg>',
+  play:'<svg viewBox="0 0 32 32"><path d="M9 5.5v21a1.2 1.2 0 0 0 1.8 1l17-10.5a1.2 1.2 0 0 0 0-2L10.8 4.5A1.2 1.2 0 0 0 9 5.5z" fill="currentColor"/></svg>',
+  pause:'<svg viewBox="0 0 32 32"><rect x="7" y="5" width="6.5" height="22" rx="1.8" fill="currentColor"/><rect x="18.5" y="5" width="6.5" height="22" rx="1.8" fill="currentColor"/></svg>',
+  wave:'<svg viewBox="0 0 32 32">'+[5,9.5,14,18.5,23,27.5].map((x,i)=>`<rect x="${x-1.1}" y="${16-[4,8,11,7,10,4][i]}" width="2.2" height="${[8,16,22,14,20,8][i]}" rx="1.1" fill="currentColor"/>`).join('')+'</svg>',
+  trash:'<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h22M12.5 8V5.5h7V8M8 8l1.4 18.2a1.8 1.8 0 0 0 1.8 1.6h9.6a1.8 1.8 0 0 0 1.8-1.6L24 8M13 13v10M16 13v10M19 13v10"/></svg>'};
+var vm=null;
+const vmTitle=()=>{const i=S.page,p=page();return book().title+' · '+(p.cover?'Cover':'Page '+i)};
+const vmT=(t,cs)=>{t=Math.max(0,t||0);const m=Math.floor(t/60),s=t-m*60;return cs?String(m).padStart(2,'0')+':'+(s<10?'0':'')+s.toFixed(2):m+':'+String(Math.floor(s)).padStart(2,'0')};
+function vmOpen(html){let L=$('#vm');if(!L){$('#app').insertAdjacentHTML('beforeend','<div id="vm" hidden><div class="vmp" id="vmp" role="dialog" aria-modal="true"></div></div>');L=$('#vm');
+    L.addEventListener('click',e=>{if(e.target.id==='vm') vmClose()});
+    /* drag the grey handle down to close */
+    let y0=null;L.addEventListener('pointerdown',e=>{if(e.target.closest('.gr')){y0=e.clientY;L.setPointerCapture(e.pointerId)}});
+    L.addEventListener('pointermove',e=>{if(y0!=null){const d=Math.max(0,e.clientY-y0);$('#vmp').style.transform=`translateY(${d}px)`}});
+    L.addEventListener('pointerup',e=>{if(y0==null) return;const d=e.clientY-y0;y0=null;$('#vmp').style.transform='';if(d>60||Math.abs(d)<4) vmClose()})}
+  $('#vmp').innerHTML='<div class="gr" aria-label="Close"></div>'+html;L.hidden=false}
+function vmClose(){if(!vm&&$('#vm')&&$('#vm').hidden) return;const v=vm;vm=null;if(v&&v.stopAll) v.stopAll();if($('#vm')) $('#vm').hidden=true}
+function openVoice(s){markOpen(s);const src=()=>s.audio||(s.type==='play'?(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio:null);
+  if(!src()&&s.type==='voice'){vmRecord(s);return}vmPlay(s,src,true)}
+async function vmPlay(s,src,auto){stopAudio();const id=src(),when=s.at?new Date(s.at):null;
+  vmOpen(`<h3 class="vt l">${esc(vmTitle())}</h3><div class="vs">${id?(when?when.toLocaleDateString([], {day:'numeric',month:'short'})+', '+when.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'Family voice'):'Phone voice'}</div>
+   <div class="vbar" id="vbar"><i id="vfill"></i></div><div class="vtimes"><span id="vcur">0:00</span><span id="vrem">${id?'':'&nbsp;'}</span></div>
+   <div class="vctl"><button class="vi blue" id="vrec" aria-label="Record">${VMI.wave}</button><button class="vi" id="vb15" aria-label="Back 15 seconds" ${id?'':'disabled'}>${VMI.back}</button><button class="vi big" id="vpl" aria-label="Play">${VMI.play}</button><button class="vi" id="vf15" aria-label="Forward 15 seconds" ${id?'':'disabled'}>${VMI.fwd}</button><button class="vi blue" id="vdel" aria-label="Delete recording" ${id?'':'disabled'}>${VMI.trash}</button></div>`);
+  const P=$('#vmp'),pl=P.querySelector('#vpl');let a=null,raf=0,tts=0;
+  const dur=()=>a&&isFinite(a.duration)&&a.duration>0?a.duration:(s.dur||0);
+  const draw=()=>{const d=dur(),t=a?a.currentTime:0;P.querySelector('#vfill').style.width=(d?Math.min(100,t/d*100):0)+'%';P.querySelector('#vcur').textContent=vmT(t);if(id) P.querySelector('#vrem').textContent='−'+vmT(Math.max(0,d-t))};
+  const loop=()=>{draw();raf=requestAnimationFrame(loop)};
+  const on=v=>{pl.innerHTML=v?VMI.pause:VMI.play;pl.setAttribute('aria-label',v?'Pause':'Play')};
+  if(id){const u=await blobURL(id);if(!u){toast('Could not find this recording.');return}a=new Audio(u);a.preload='auto';player=a;a.onended=()=>{on(false);cancelAnimationFrame(raf);draw()};a.onloadedmetadata=draw}
+  const go=()=>{if(a){if(a.paused){player=a;a.play().then(()=>{on(true);loop()}).catch(()=>toast('Could not play this recording.'))}else{a.pause();on(false);cancelAnimationFrame(raf)}return}
+    if(!page().text){toast('Tap the wave button to record this page.');return}
+    try{if(speechSynthesis.speaking){speechSynthesis.cancel();on(false);clearInterval(tts);return}}catch(e){}
+    say(page().text,.85);on(true);clearInterval(tts);tts=setInterval(()=>{try{if(!speechSynthesis.speaking){clearInterval(tts);on(false)}}catch(e){clearInterval(tts)}},400)};
+  vm={stopAll(){cancelAnimationFrame(raf);clearInterval(tts);if(a) a.pause();stopAudio()}};
+  pl.onclick=go;
+  P.querySelector('#vb15').onclick=()=>{if(a){a.currentTime=Math.max(0,a.currentTime-15);draw()}};
+  P.querySelector('#vf15').onclick=()=>{if(a){a.currentTime=Math.min(dur()||0,a.currentTime+15);draw()}};
+  const bar=P.querySelector('#vbar');bar.onpointerdown=e=>{if(!a||!dur()) return;const r=bar.getBoundingClientRect();a.currentTime=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*dur();draw()};
+  P.querySelector('#vrec').onclick=()=>{vm.stopAll();vm=null;
+    if(!s.audio){vmRecord(s);return}
+    $('#vm').hidden=true;sheet(`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>Record again?</h3></div><p>The new recording replaces the old recording on this sticker.</p><div class="row"><button class="act" id="recNo">Cancel</button><button class="act danger" id="recGo">Record</button></div>`,
+      c=>{c.querySelector('#recGo').onclick=()=>{closeSheet();vmRecord(s)};c.querySelector('#recNo').onclick=()=>{closeSheet();vmPlay(s,src,false)}})};
+  P.querySelector('#vdel').onclick=()=>{if(!s.audio){toast('This sticker plays a recording from a Voice sticker.');return}vm.stopAll();vm=null;$('#vm').hidden=true;
+    sheet(`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>Delete recording?</h3></div><p>The recording is removed from this sticker.</p><div class="row"><button class="act" id="dNo">Cancel</button><button class="act danger" id="dGo">Delete</button></div>`,
+      c=>{c.querySelector('#dGo').onclick=()=>{blobDel(s.audio).catch(()=>{});delete s.audio;delete s.at;delete s.dur;save();renderStrip();closeSheet();vmPlay(s,src,false)};c.querySelector('#dNo').onclick=()=>{closeSheet();vmPlay(s,src,false)}})};
+  draw();if(auto) go()}
+async function vmRecord(s){stopAudio();
+  vmOpen(`<h3 class="vt">${esc(vmTitle())}</h3><div class="vtm" id="vtm">00:00.00</div><canvas class="vwave" id="vwave"></canvas><div class="vstopw"><button class="vstop" id="vstop" aria-label="Stop"><i></i></button></div>`);
+  const P=$('#vmp'),cv=P.querySelector('#vwave'),dpr=devicePixelRatio||1,lv=[];let t0=0,raf=0,last=0,cur=0,saved=false;
+  const size=()=>{cv.width=cv.offsetWidth*dpr;cv.height=cv.offsetHeight*dpr};size();
+  const draw=now=>{if(t0){P.querySelector('#vtm').textContent=vmT((now-t0)/1000,true);if(now-last>60){last=now;lv.push(cur);cur*=.5}}
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,st=5.2*dpr,n=Math.floor(W*.86/st),show=lv.slice(-n);g.clearRect(0,0,W,H);g.fillStyle='#EB5545';
+    const x0=W*.86-show.length*st;show.forEach((v,i)=>{const h=Math.max(3*dpr,Math.min(1,v)*H*.9);g.fillRect(x0+i*st,(H-h)/2,1.6*dpr,h)});
+    for(let x=W*.86+st;x<W;x+=st) g.fillRect(x,H/2-.6*dpr,2*dpr,1.2*dpr);raf=requestAnimationFrame(draw)};
+  raf=requestAnimationFrame(draw);
+  vm={stopAll(){if(rec) rec.stop();cancelAnimationFrame(raf)}};const me=vm;
+  await recordToggle(P.querySelector('#vstop'),id=>{saved=true;if(s.audio) blobDel(s.audio).catch(()=>{});s.audio=id;s.at=Date.now();s.dur=t0?(performance.now()-t0)/1000:0;save();renderStrip();
+      if(vm===me||!vm){cancelAnimationFrame(raf);vm=null;vmPlay(s,()=>s.audio,false)}},
+    {level:m=>cur=Math.max(cur,m),end:()=>{cancelAnimationFrame(raf);setTimeout(()=>{if(!saved&&vm===me){vm=null;vmClose()}},50)}});
+  if(!rec){cancelAnimationFrame(raf);vm=null;vmClose();return}t0=performance.now();
+  P.querySelector('#vstop').onclick=()=>{if(rec) rec.stop()}}
+
 /* audio: record and play, kept on this phone */
 let player=null;function stopAudio(){if(player){player.pause();player=null}try{speechSynthesis.cancel()}catch(e){}}
 async function play(id){stopAudio();const u=await blobURL(id);if(!u) return;player=new Audio(u);player.play().catch(()=>toast('Could not play this recording.'))}
 const say=(t,rate=.8)=>{try{stopAudio();const u=new SpeechSynthesisUtterance(t);u.rate=rate;speechSynthesis.speak(u)}catch(e){toast('This phone cannot speak here.')}};
 let rec=null;
-async function recordToggle(btnEl,onDone){
+async function recordToggle(btnEl,onDone,opt){opt=opt||{};
   if(rec){rec.stop();return}
   stopAudio();
   /* make the sound context now, while the tap is fresh (iPhone needs this) */
@@ -848,13 +937,13 @@ async function recordToggle(btnEl,onDone){
   const type=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
   const r=new MediaRecorder(ms,type?{mimeType:type}:undefined),chunks=[];rec=r;btnEl.classList.add('on');
   /* live wave: the bars on the red button move with the sound the microphone hears (Bell 31 Oct 2026) */
-  const icon0=btnEl.innerHTML;btnEl.innerHTML=WAVE;const bars=[...btnEl.querySelectorAll('rect')];let raf=0;
+  const icon0=btnEl.innerHTML;if(!opt.level) btnEl.innerHTML=WAVE;const bars=[...btnEl.querySelectorAll('rect')];let raf=0;
   if(ac){try{ac.resume&&ac.resume();const an=ac.createAnalyser();an.fftSize=256;an.smoothingTimeConstant=.6;ac.createMediaStreamSource(ms).connect(an);
     const d=new Uint8Array(an.frequencyBinCount),lv=bars.map(()=>0),W=[.7,1,.85,1,.7];
-    const tick=()=>{an.getByteFrequencyData(d);bars.forEach((b,i)=>{let m=0;const a=2+i*6;for(let j=a;j<a+6;j++) m+=d[j];m=Math.min(1,m/6/170*W[i]);lv[i]=Math.max(m,lv[i]*.8);
+    const tick=()=>{an.getByteFrequencyData(d);if(opt.level){let t=0;for(let j=2;j<40;j++) t+=d[j];opt.level(Math.min(1,t/38/110))}bars.forEach((b,i)=>{let m=0;const a=2+i*6;for(let j=a;j<a+6;j++) m+=d[j];m=Math.min(1,m/6/170*W[i]);lv[i]=Math.max(m,lv[i]*.8);
       const h=4+lv[i]*16;b.setAttribute('y',12-h/2);b.setAttribute('height',h)});raf=requestAnimationFrame(tick)};tick()}catch(e){}}
   r.ondataavailable=e=>e.data.size&&chunks.push(e.data);
-  r.onstop=async()=>{ms.getTracks().forEach(t=>t.stop());cancelAnimationFrame(raf);if(ac) ac.close().catch(()=>{});btnEl.innerHTML=icon0;rec=null;btnEl.classList.remove('on');const b=new Blob(chunks,{type:r.mimeType||type||'audio/mp4'});if(b.size<500){toast('That was too short. Try again.');return}
+  r.onstop=async()=>{ms.getTracks().forEach(t=>t.stop());cancelAnimationFrame(raf);if(ac) ac.close().catch(()=>{});btnEl.innerHTML=icon0;rec=null;btnEl.classList.remove('on');if(opt.end) opt.end();const b=new Blob(chunks,{type:r.mimeType||type||'audio/mp4'});if(b.size<500){toast('That was too short. Try again.');return}
     const id='a'+uid();await blobPut(id,b);onDone(id)};
   r.start()}
 const WAVE='<svg viewBox="0 0 24 24">'+[3,7.5,12,16.5,21].map((x,i)=>`<rect x="${x-1.5}" y="${12-[3,6,9,6,3][i]}" width="3" height="${[6,12,18,12,6][i]}" rx="1.5" fill="#fff"/>`).join('')+'</svg>';
@@ -865,10 +954,10 @@ function recRow(label,id,field,o){return `<div class="rec"><button class="recbtn
 function openSticker(s){if(!s) return;
   const hd=`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>${{play:'Read aloud',word:'New word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]}</h3></div>`;
   /* read-aloud sticker: two small buttons pop out of it, play/stop and record; no panel (Bell 31 Oct 2026) */
-  if(s.type==='play'){markOpen(s);if(nfly&&nfly.dataset.for===s.id){closeFly();return}openFly(s);return}
+  if(s.type==='play'||s.type==='voice'){openVoice(s);return}
   if(s.type==='word'){markOpen(s);sheet(`${hd}<div class="word" aria-label="${esc(s.word)}">${colourWord(s.word)}</div><p id="def" class="note">${s.def?esc(s.def):''}</p><div class="row"><button class="act" id="slow">Say it slowly</button><button class="act main" data-close>Got it</button></div><p class="note">Blue letters are consonants. Red letters are vowels.</p>`,c=>{c.querySelector('#slow').onclick=()=>say(s.word.split('').join(' ')+'. '+s.word);if(!s.def) define(s)});return}
   if(s.type==='fact'){markOpen(s);sheet(`${hd}<p>${esc(s.fact)}</p><div class="row"><button class="act" id="hear">Hear it</button><button class="act main" data-close>Wow!</button></div>`,c=>{c.querySelector('#hear').onclick=()=>say(s.fact)});return}
-  const rows=s.type==='voice'?recRow('Read this part','audio' in s&&s.audio,'audio',s):recRow('Child’s question',s.qAudio,'qAudio',s)+recRow('Family answer',s.aAudio,'aAudio',s);
+  const rows=recRow('Child’s question',s.qAudio,'qAudio',s)+recRow('Family answer',s.aAudio,'aAudio',s);
   sheet(`${hd}${rows}<div class="row"><button class="act main" data-close>Done</button></div><p class="note">Recordings stay on this phone.</p>`,c=>wireRec(c,s))}
 async function define(s){try{const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(s.word));if(!r.ok) return;const j=await r.json();
   const d=j[0]&&j[0].meanings&&j[0].meanings[0]&&j[0].meanings[0].definitions[0]&&j[0].meanings[0].definitions[0].definition;if(!d) return;s.def=d;save();const el=document.querySelector('#def');if(el) el.textContent=d}catch(e){}}

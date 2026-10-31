@@ -195,6 +195,9 @@ body{margin:0}
 /* library icon and book title 5 px lower (3 + 2); bar size unchanged (Bell 31 Oct 2026) */
 #glass .bar>*{position:relative;top:5px}
 #glass .prog{--off:#68686D;--offg:#3A3A3C}
+/* done / made, e.g. 3/12; the total grows as stickers are made (Bell 31 Oct 2026) */
+#glass .prog b i{font-style:normal;font-size:13px;opacity:.75;letter-spacing:.02em;margin-left:1px}
+#glass .strip{scroll-snap-type:none}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -435,7 +438,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='42';
+const APPV='44';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -503,7 +506,7 @@ async function recrop(pi){const p=book().pages[pi];if(!p.frame){toast('Make stic
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
-  camOn();ocrWorker().catch(()=>{});await renderStrip();renderPage();
+  camOn();ocrWorker().catch(()=>{});stripCenter=true;await renderStrip();renderPage();
   hint(page().scanned?'Tap the page you are on, then hold the magnifier.':'Hold the magnifier until the ring is full. Keep the phone still.')}
 $('#backBtn').onclick=()=>{endCrop(false);closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
 function done(p){return p.scanned&&p.stickers.length&&p.stickers.every(s=>s.open)}
@@ -512,15 +515,17 @@ const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" 
 /* progress row under the title: the cover icons with how many are done */
 function counts(b){const app=b.pages.flatMap(p=>p.stickers),story=b.pages.filter(p=>!p.cover),n=t=>app.filter(s=>s.type===t);
   return {narr:[story.filter(p=>p.own.some(o=>o.type==='voice'&&o.audio)).length,story.length],word:[n('word').filter(s=>s.open).length,n('word').length],
-    fact:[n('fact').filter(s=>s.open).length,n('fact').length],qa:[b.pages.flatMap(p=>p.own).filter(o=>o.type==='q'&&o.qAudio&&o.aAudio).length,null]}}
+    fact:[n('fact').filter(s=>s.open).length,n('fact').length],qa:[b.pages.flatMap(p=>p.own).filter(o=>o.type==='q'&&o.qAudio&&o.aAudio).length,b.pages.flatMap(p=>p.own).filter(o=>o.type==='q').length]}}
 const PNAME={narr:'Family narration, pages',word:'Words opened',fact:'Fun facts opened',qa:'Questions answered'};
 function renderProg(){const b=book(),pr=progress(b),c=counts(b);
-  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b style="color:${pr[t]>0?TYPES[t].c:'var(--off)'}">${c[t][0]}</b></span>`).join('')}
-async function renderStrip(){renderProg();const b=book();let h='';
+  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b style="color:${pr[t]>0?TYPES[t].c:'var(--off)'}">${c[t][0]}<i>/${c[t][1]}</i></b></span>`).join('')}
+/* the strip keeps its scroll place when a thumbnail is tapped; it centres the current page only when a book opens (Bell 31 Oct 2026) */
+let stripCenter=false;
+async function renderStrip(){renderProg();const b=book();let h='';const sl=$('#strip').scrollLeft;
   for(const [i,p] of b.pages.entries()){const u=p.thumbData||await blobURL(p.thumb);
     h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="${p.cover?'Cover':'Page '+i}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${p.cover?'Cover':i}</span></button>`}
   h+=`<button class="th addp" id="addPage" aria-label="Add a page"><svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" rx="4" fill="none" stroke="#636366" stroke-width="3" stroke-dasharray="7 6"/><path d="M44 42v28M30 56h28" stroke="#AEAEB2" stroke-width="5" stroke-linecap="round"/></svg><span>Add</span></button>`;
-  $('#strip').innerHTML=h;const c=$('#strip .cur');if(c) {const s=$('#strip');s.scrollLeft=c.offsetLeft-(s.clientWidth-c.offsetWidth)/2}}
+  $('#strip').innerHTML=h;const s=$('#strip'),c=$('#strip .cur');if(stripCenter&&c){stripCenter=false;s.scrollLeft=c.offsetLeft-(s.clientWidth-c.offsetWidth)/2} else s.scrollLeft=sl}
 $('#strip').addEventListener('click',async e=>{if(mode==='crop') endCrop(false);
   if(e.target.closest('#addPage')){book().pages.push({id:uid(),scanned:false,thumb:null,stickers:[],own:[]});S.page=book().pages.length-1;save();closeMenu();setDel(false);await renderStrip();renderPage();hint('New page. Hold the magnifier to make stickers.');return}
   const t=e.target.closest('.th');if(!t) return;closeMenu();setDel(false);S.page=+t.dataset.p;save();await renderStrip();renderPage();

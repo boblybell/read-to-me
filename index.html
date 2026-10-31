@@ -453,7 +453,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='50';
+const APPV='51';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -480,8 +480,38 @@ async function saveThumb(p,frame,box){const im=await loadImg(frame),b=box||{x:0,
   if(typeof frame!=='string') URL.revokeObjectURL(im.src);
   p.thumbData=c.toDataURL('image/jpeg',.75);p.crop=b;save();await renderStrip()}
 /* auto crop: find the largest bright area (the paper) in the photo */
+/* find the book by colour: the edge of the photo shows the table or cloth; the book is the large area that looks different (Bell 31 Oct 2026) */
+function bgCrop(d,w,h){const n=w*h,R=new Float32Array(n),G=new Float32Array(n),B=new Float32Array(n);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){let r=0,g=0,b=0,k=0;for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){const xx=Math.min(w-1,Math.max(0,x+dx)),yy=Math.min(h-1,Math.max(0,y+dy)),o=(yy*w+xx)*4;r+=d[o];g+=d[o+1];b+=d[o+2];k++}
+    const i=y*w+x;R[i]=r/k;G[i]=g/k;B[i]=b/k}
+  /* colours along the edge of the photo, grouped into a few kinds */
+  const ed=[];for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(x<3||y<3||x>=w-3||y>=h-3) ed.push(y*w+x);
+  const K=6,C=[];for(let k=0;k<K;k++){const i=ed[Math.floor((k+.5)*ed.length/K)];C.push([R[i],G[i],B[i]])}
+  const near=i=>{let bd=1e9,bk=0;for(let k=0;k<K;k++){const a=R[i]-C[k][0],b=G[i]-C[k][1],c=B[i]-C[k][2],v=a*a+b*b+c*c;if(v<bd){bd=v;bk=k}}return [Math.sqrt(bd),bk]};
+  for(let it=0;it<6;it++){const s=C.map(()=>[0,0,0,0]);for(const i of ed){const k=near(i)[1];s[k][0]+=R[i];s[k][1]+=G[i];s[k][2]+=B[i];s[k][3]++}s.forEach((v,k)=>{if(v[3]) C[k]=[v[0]/v[3],v[1]/v[3],v[2]/v[3]]})}
+  const ev=ed.map(i=>near(i)[0]).sort((a,b)=>a-b),T=Math.max(26,ev[Math.floor(ev.length*.9)]*1.6);
+  const F=new Uint8Array(n);for(let i=0;i<n;i++) F[i]=near(i)[0]>T?1:0;
+  /* join the parts of the book, then keep the largest one */
+  const Q=new Uint8Array(n);for(let y=0;y<h;y++) for(let x=0;x<w;x++){let on=0;for(let dy=-2;dy<=2&&!on;dy++) for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<w&&yy<h&&F[yy*w+xx]){on=1;break}}Q[y*w+x]=on}
+  const seen=new Uint8Array(n),parts=[];
+  for(let s=0;s<n;s++){if(!Q[s]||seen[s]) continue;const q=[s];seen[s]=1;let cnt=0,x0=w,y0=h,x1=0,y1=0;
+    while(q.length){const i=q.pop(),x=i%w,y=(i/w)|0;cnt++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||seen[j]||!Q[j]) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;seen[j]=1;q.push(j)}}
+    parts.push({cnt,x0,y0,x1,y1})}
+  if(!parts.length) return null;parts.sort((a,b)=>b.cnt-a.cnt);
+  /* the largest part, plus other big parts that do not touch the edge of the photo (light areas of a cover can split it) */
+  const top={...parts[0]};for(const q of parts.slice(1)){if(q.cnt<.015*n||q.x0<=1||q.y0<=1||q.x1>=w-2||q.y1>=h-2) continue;
+    top.x0=Math.min(top.x0,q.x0);top.y0=Math.min(top.y0,q.y0);top.x1=Math.max(top.x1,q.x1);top.y1=Math.max(top.y1,q.y1)}
+  const bx=Math.max(0,(top.x0+2)/w),by=Math.max(0,(top.y0+2)/h),bw=Math.min(1,(top.x1-1)/w)-bx,bh=Math.min(1,(top.y1-1)/h)-by;
+  if(bw*bh<.06||bw*bh>.92) return null;
+  /* a book looks different almost everywhere; lines of text on a page that fills the photo do not */
+  let fg=0;for(let y=top.y0;y<=top.y1;y++) for(let x=top.x0;x<=top.x1;x++) fg+=F[y*w+x];
+  const fill=fg/((top.x1-top.x0+1)*(top.y1-top.y0+1)),flat=ev[Math.floor(ev.length*.9)]<14;
+  if(fill<.15||(flat&&fill<.4)) return null;
+  return {x:bx,y:by,w:bw,h:bh}}
 async function autoCrop(frame){try{const im=await loadImg(frame),w=120,h=Math.max(1,Math.round(w*im.naturalHeight/im.naturalWidth)),c=document.createElement('canvas');c.width=w;c.height=h;
   const g=c.getContext('2d');g.drawImage(im,0,0,w,h);URL.revokeObjectURL(im.src);const d=g.getImageData(0,0,w,h).data,n=w*h,L=new Uint8Array(n),hist=new Array(256).fill(0);
+  const bk=bgCrop(d,w,h);if(bk) return bk;
   for(let i=0;i<n;i++){const v=(d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11)|0;L[i]=v;hist[v]++}
   /* Otsu threshold between paper and background */
   let sum=0;for(let i=0;i<256;i++) sum+=i*hist[i];let sB=0,wB=0,best=0,th=128;

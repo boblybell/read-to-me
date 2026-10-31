@@ -198,8 +198,9 @@ body{margin:0}
 /* done / made, e.g. 3/12; the total grows as stickers are made (Bell 31 Oct 2026) */
 #glass .prog b i{font-style:normal;font-size:13px;opacity:.75;letter-spacing:.02em;margin-left:1px}
 #glass .strip{scroll-snap-type:none}
-/* covers and shelves 9 px higher (Bell 31 Oct 2026) */
-#shelves .shelf:first-child{padding-top:15px}
+/* covers and shelves 27 px higher in total (9 + 18, Bell 31 Oct 2026) */
+#shelves .shelf:first-child{padding-top:0}
+#shelves{margin-top:-3px}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -440,7 +441,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='46';
+const APPV='47';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

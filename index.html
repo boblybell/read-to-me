@@ -175,7 +175,9 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .cropl.flash{pointer-events:none}.cropl.flash .cbox{box-shadow:0 0 0 2000px rgba(0,0,0,.25);border-color:#34C759;transition:none}.cropl.flash .cbox i{display:none}
 /* page strip at the bottom of the screen (Bell 31 Oct 2026) */
 #glass .stage{padding-bottom:6px}
-#glass .strip{height:auto;padding-top:8px;padding-bottom:max(2px,calc(env(safe-area-inset-bottom,0px) - 22px))}
+/* the bar reaches the bottom edge; thumbnails sit above the rounded screen corners */
+#glass .strip{height:auto;background:var(--banner);padding-top:10px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));scroll-padding:0 24px}
+#glass .stage{padding-bottom:10px}
 #app{height:100dvh}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
@@ -398,7 +400,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='15';
+const APPV='16';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

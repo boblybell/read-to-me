@@ -194,6 +194,7 @@ body{margin:0}
 .ltop h1,.card h3,.word,.book .nm{font-family:var(--num);font-weight:800;letter-spacing:0}
 /* library icon and book title 3 px lower; bar size unchanged (Bell 31 Oct 2026) */
 #glass .bar>*{position:relative;top:3px}
+#glass .prog{--off:#68686D;--offg:#3A3A3C}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -373,7 +374,8 @@ function progress(b){
 }
 let CID=0;
 const solid=T=>`<path d="${T.shape}" fill="${T.c}"/><path d="${T.g}" fill="none" stroke="${T.gOut?T.c:'#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-const outline=T=>`<g fill="none" stroke="${GREY}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${T.shape}"/><path d="${T.g}"/></g>`;
+/* not done = solid grey shape, no outline (Bell 31 Oct 2026, like the game HUD reference) */
+const outline=T=>`<path d="${T.shape}" style="fill:var(--off,${GREY})"/><path d="${T.g}" fill="none" style="stroke:${T.gOut?'var(--off,'+GREY+')':'var(--offg,#fff)'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 const icon=(t,p)=>{const T=TYPES[t];
   if(p>=1) return `<svg class="li" viewBox="0 0 24 24">${solid(T)}</svg>`;
   if(p<=0) return `<svg class="li" viewBox="0 0 24 24">${outline(T)}</svg>`;
@@ -433,7 +435,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='40';
+const APPV='41';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -513,7 +515,7 @@ function counts(b){const app=b.pages.flatMap(p=>p.stickers),story=b.pages.filter
     fact:[n('fact').filter(s=>s.open).length,n('fact').length],qa:[b.pages.flatMap(p=>p.own).filter(o=>o.type==='q'&&o.qAudio&&o.aAudio).length,null]}}
 const PNAME={narr:'Family narration, pages',word:'Words opened',fact:'Fun facts opened',qa:'Questions answered'};
 function renderProg(){const b=book(),pr=progress(b),c=counts(b);
-  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b style="color:${pr[t]>0?TYPES[t].c:'#8E8E93'}">${c[t][0]}</b></span>`).join('')}
+  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b style="color:${pr[t]>0?TYPES[t].c:'var(--off)'}">${c[t][0]}</b></span>`).join('')}
 async function renderStrip(){renderProg();const b=book();let h='';
   for(const [i,p] of b.pages.entries()){const u=p.thumbData||await blobURL(p.thumb);
     h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="${p.cover?'Cover':'Page '+i}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${p.cover?'Cover':i}</span></button>`}

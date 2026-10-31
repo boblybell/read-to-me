@@ -211,6 +211,19 @@ body{margin:0}
 #glass.full .lens::before,#glass.full .lens::after{display:none}
 #glass.full .btnwrap{bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 #glass.full .pill{top:calc(14px + env(safe-area-inset-top,0px))}
+/* camera fills the whole screen; title, counts and page strip float on it with no shade, only a soft shadow under text and icons (Bell 31 Oct 2026, option D) */
+#glass .stage{position:absolute;inset:0;padding:0;z-index:0}
+#glass .lens{border-radius:0}
+#glass .lens::before,#glass .lens::after{display:none}
+#glass .bar,#glass .prog,#glass .strip{position:absolute;left:0;right:0;z-index:5;background:transparent!important;margin:0}
+#glass .bar{top:0}
+#glass .prog{top:calc(44px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
+#glass .strip{bottom:0}
+#glass .bar h2,#glass .prog b,#glass .th span{text-shadow:0 1px 3px rgba(0,0,0,.3)}
+#glass .back svg,#glass .prog svg.li{filter:drop-shadow(0 1px 2px rgba(0,0,0,.28))}
+#glass .th svg.pg,#glass .th img.pg{box-shadow:0 1px 4px rgba(0,0,0,.22)}
+#glass .btnwrap{bottom:calc(98px + env(safe-area-inset-bottom,0px))}
+#glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -453,7 +466,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='54';
+const APPV='55';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

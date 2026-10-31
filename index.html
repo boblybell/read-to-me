@@ -453,7 +453,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='51';
+const APPV='52';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -648,7 +648,11 @@ function liveFrame(){const v=$('#cam');if(!stream||!v.videoWidth||v.paused) retu
   x.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);return {w,h,data:x.getImageData(0,0,w,h).data}}
 function placeStickers(){const box=$('#stickers'),p=page(),on=tracked();box.classList.toggle('lost',!on);if(!on) return;
   box.querySelectorAll('.st').forEach(el=>{if(drag&&drag.on&&drag.st===el) return;const s=allStickers().find(s=>s.id===el.dataset.id);if(!s) return;
-    const q=toWorld(p,s.x,s.y);if(!q) return;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)})}
+    const q=toWorld(p,s.x,s.y);if(!q) return;
+    /* steady stickers: small shakes of a few pixels are ignored, medium moves are eased, big moves jump (Bell 31 Oct 2026) */
+    const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight,c=el._p;
+    if(c){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<6) return;if(dd<50){q[0]=c[0]+(q[0]-c[0])*.35;q[1]=c[1]+(q[1]-c[1])*.35}}
+    el._p=q;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)})}
 async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null) return;
   try{await loadFeat();const f=liveFrame();
     if(f&&mode!=='crop'&&!busy){const cur=features(f.data,f.w,f.h,null);trk.cv={w:f.w,h:f.h};

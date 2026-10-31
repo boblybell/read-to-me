@@ -232,22 +232,22 @@ body{margin:0}
 /* read-aloud sticker grows into a teal pill with two buttons: play/stop and record (Bell 31 Oct 2026) */
 #vm{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.3)}
 #vm[hidden]{display:none}
-.vmp{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:#1C1C1E;color:#fff;border-radius:40px;padding:10px 24px 26px;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:vmup .28s cubic-bezier(.2,.9,.3,1);transition:transform .15s}
+.vmp{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:#1C1C1E;color:#fff;border-radius:40px;padding:10px 24px 26px;box-sizing:border-box;height:340px;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.5);animation:vmup .28s cubic-bezier(.2,.9,.3,1);transition:transform .15s}
 @keyframes vmup{from{transform:translateY(110%)}}
 .vmp .gr{width:42px;height:5px;border-radius:3px;background:#5A5A5E;margin:0 auto 18px;padding:10px 0;background-clip:content-box;box-sizing:content-box;touch-action:none}
 .vmp .vt{margin:0;font:800 23px/29px var(--num);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vmp .vt.l{text-align:left}
 .vmp .vtm{text-align:center;color:#8E8E93;font:400 19px/26px var(--ui);font-variant-numeric:tabular-nums;margin-top:4px}
-.vmp .vwave{display:block;width:calc(100% + 48px);margin:26px -24px 22px;height:120px}
+.vmp .vwave{display:block;width:calc(100% + 48px);margin:auto -24px;height:100px;flex:none}
 .vmp .vstopw{display:grid;place-items:center}
 .vmp .vstop{width:74px;height:74px;border-radius:50%;border:2.5px solid #3A3A3C;display:grid;place-items:center;background:none}
 .vmp .vstop i{width:30px;height:30px;border-radius:7px;background:#EB5545}
 .vmp .vs{color:#8E8E93;font:400 17px/24px var(--ui);margin-top:2px}
-.vmp .vbar{position:relative;height:7px;border-radius:4px;background:#3A3A3C;margin:30px 0 8px;touch-action:none}
+.vmp .vbar{position:relative;height:7px;border-radius:4px;background:#3A3A3C;margin:auto 0 8px;touch-action:none;flex:none}
 .vmp .vbar::after{content:"";position:absolute;inset:-14px 0}
 .vmp .vbar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;background:#fff}
 .vmp .vtimes{display:flex;justify-content:space-between;color:#8E8E93;font:400 14px/18px var(--ui);font-variant-numeric:tabular-nums}
-.vmp .vctl{display:flex;align-items:center;justify-content:space-between;margin-top:22px}
+.vmp .vctl{display:flex;align-items:center;justify-content:space-between;margin-top:24px}
 .vmp .vi{width:46px;height:46px;display:grid;place-items:center;color:#fff;background:none;border:0;padding:0}
 .vmp .vi svg{width:34px;height:34px}
 .vmp .vi.big svg{width:44px;height:44px}
@@ -514,7 +514,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='64';
+const APPV='65';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

@@ -482,7 +482,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='57';
+const APPV='58';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -628,12 +628,13 @@ function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s
     else if(page().text){say(page().text,.85);show(true);const t0=setInterval(()=>{try{if(!speechSynthesis.speaking){clearInterval(t0);show(false)}}catch(e){clearInterval(t0)}},400)}
     else toast('Tap the red button to record this page.')};
   np.onclick=e=>{e.stopPropagation();go()};
-  /* a short warning first, then record (Bell 31 Oct 2026) */
+  /* record at once; only when this sticker already has a recording, warn first that the new one replaces it (Bell 31 Oct 2026) */
   const nr=f.querySelector('.nr');
   const startRec=()=>{show(false);hint('Recording. Read the page aloud, then tap the red button.',true);
     recordToggle(nr,id=>{hint('');if(s.audio) blobDel(s.audio).catch(()=>{});s.audio=id;save();renderStrip();toast('Saved. This sticker now plays your voice.')})};
   nr.onclick=e=>{e.stopPropagation();if(rec){rec.stop();hint('');return}stopAudio();show(false);
-    sheet(`<div class="hd"><span class="st">${stickerHTML('play')}</span><h3>Record this page?</h3></div><p>${s.audio?'This replaces the voice you recorded before.':'The microphone turns on. Read the page aloud, then tap the red button to stop.'}</p><p class="note">Your voice stays on this phone. It is not sent anywhere.</p><div class="row"><button class="act" data-close>Cancel</button><button class="act danger" id="recGo">Record</button></div>`,
+    if(!s.audio){startRec();return}
+    sheet(`<div class="hd"><span class="st">${stickerHTML('play')}</span><h3>Record again?</h3></div><p>The new recording replaces the old recording on this sticker.</p><div class="row"><button class="act" data-close>Cancel</button><button class="act danger" id="recGo">Record</button></div>`,
       c=>{c.querySelector('#recGo').onclick=()=>{closeSheet();startRec()}})};
   go()}
 function flyPos(){if(!nfly) return;const el=document.querySelector(`.st[data-id="${nfly.dataset.for}"]`);if(!el){nfly.remove();nfly=null;return}

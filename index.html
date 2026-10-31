@@ -514,7 +514,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='67';
+const APPV='69';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -642,7 +642,8 @@ const SH={
   play:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#5AADA6',g:'<path d="M9 6.5v11l9-5.5z" fill="#000"/>'},
   word:{shape:f=>`<rect x="1.5" y="1.5" width="43" height="43" rx="8" fill="${f}"/>`,fill:'#F9E688',g:'<path d="M5 19C5 10 10 5 19 5c0 9-5 14-14 14z" fill="#000"/><path d="M6.5 17.5l7.5-7.5" stroke="#F9E688" stroke-width="1.6" fill="none" stroke-linecap="round"/>'},
   fact:{shape:f=>`<path d="M23 1.5 42 12.25v21.5L23 44.5 4 33.75v-21.5z" fill="${f}"/>`,fill:'#0E6FA6',g:'<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>'},
-  voice:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#D3C0CA',g:'<g fill="#000"><rect x="2.8" y="10.8" width="2.4" height="2.4" rx="1.2"/><rect x="6.8" y="7.5" width="2.4" height="9" rx="1.2"/><rect x="10.8" y="4.5" width="2.4" height="15" rx="1.2"/><rect x="14.8" y="7.5" width="2.4" height="9" rx="1.2"/><rect x="18.8" y="10" width="2.4" height="4" rx="1.2"/></g>'},
+  /* the Voice sticker looks the same as the read-aloud play sticker (Bell 31 Oct 2026) */
+  voice:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#5AADA6',g:'<path d="M9 6.5v11l9-5.5z" fill="#000"/>'},
   q:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#A1579E',g:'<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.3-1.5 2.4v.5" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.7" fill="#fff"/>'}};
 const stickerHTML=(t,extra='')=>`<svg class="b" viewBox="0 0 46 46">${SH[t].shape(SH[t].fill)}</svg><svg class="g" viewBox="0 0 24 24">${SH[t].g}</svg>${extra}`;
 /* a scanned page shows its saved photo with the stickers on it; the live camera shows only for a new page or after Regenerate (Bell 31 Oct 2026) */
@@ -939,8 +940,8 @@ async function recordToggle(btnEl,onDone,opt){opt=opt||{};
   /* live wave: the bars on the red button move with the sound the microphone hears (Bell 31 Oct 2026) */
   const icon0=btnEl.innerHTML;if(!opt.level) btnEl.innerHTML=WAVE;const bars=[...btnEl.querySelectorAll('rect')];let raf=0;
   if(ac){try{ac.resume&&ac.resume();const an=ac.createAnalyser();an.fftSize=256;an.smoothingTimeConstant=.6;ac.createMediaStreamSource(ms).connect(an);
-    const d=new Uint8Array(an.frequencyBinCount),td=new Uint8Array(an.fftSize),lv=bars.map(()=>0),W=[.7,1,.85,1,.7];
-    const tick=()=>{an.getByteFrequencyData(d);if(opt.level){/* loudness in decibels, so loud phones (iPhone) do not fill the bars: -55 dB = flat, -8 dB = full (Bell 31 Oct 2026) */an.getByteTimeDomainData(td);let q=0;for(let j=0;j<td.length;j++){const v=(td[j]-128)/128;q+=v*v}const db=20*Math.log10(Math.sqrt(q/td.length)+1e-6);opt.level(Math.min(1,Math.max(0,(db+55)/47)))}bars.forEach((b,i)=>{let m=0;const a=2+i*6;for(let j=a;j<a+6;j++) m+=d[j];m=Math.min(1,m/6/170*W[i]);lv[i]=Math.max(m,lv[i]*.8);
+    const d=new Uint8Array(an.frequencyBinCount),td=new Uint8Array(an.fftSize),nf=null,lv=bars.map(()=>0),W=[.7,1,.85,1,.7];
+    const tick=()=>{an.getByteFrequencyData(d);if(opt.level){/* loudness in decibels, so loud phones (iPhone) do not fill the bars: -55 dB = flat, -8 dB = full (Bell 31 Oct 2026) */an.getByteTimeDomainData(td);let q=0;for(let j=0;j<td.length;j++){const v=(td[j]-128)/128;q+=v*v}const db=20*Math.log10(Math.sqrt(q/td.length)+1e-6);/* room noise sets the floor (it rises slowly, falls at once), so background noise stays flat */nf=nf==null?db:Math.min(db,nf+.03);opt.level(Math.min(1,Math.max(0,(db-Math.max(nf,-70)-5)/32)))}bars.forEach((b,i)=>{let m=0;const a=2+i*6;for(let j=a;j<a+6;j++) m+=d[j];m=Math.min(1,m/6/170*W[i]);lv[i]=Math.max(m,lv[i]*.8);
       const h=4+lv[i]*16;b.setAttribute('y',12-h/2);b.setAttribute('height',h)});raf=requestAnimationFrame(tick)};tick()}catch(e){}}
   r.ondataavailable=e=>e.data.size&&chunks.push(e.data);
   r.onstop=async()=>{ms.getTracks().forEach(t=>t.stop());cancelAnimationFrame(raf);if(ac) ac.close().catch(()=>{});btnEl.innerHTML=icon0;rec=null;btnEl.classList.remove('on');if(opt.end) opt.end();const b=new Blob(chunks,{type:r.mimeType||type||'audio/mp4'});if(b.size<500){toast('That was too short. Try again.');return}

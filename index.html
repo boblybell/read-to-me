@@ -224,6 +224,10 @@ body{margin:0}
 #glass .th svg.pg,#glass .th img.pg{box-shadow:0 1px 4px rgba(0,0,0,.22)}
 #glass .btnwrap{bottom:calc(98px + env(safe-area-inset-bottom,0px))}
 #glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
+.narr{display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0 14px}
+.nplay{width:84px;height:84px;border-radius:50%;background:#1FC2C2;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.nplay svg{width:40px;height:40px;fill:#fff}
+.nplay.on{background:#1C1C1E}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -399,7 +403,7 @@ const shown={};
 function progress(b){
   const app=b.pages.flatMap(p=>p.stickers),all=b.pages.every(p=>p.scanned);
   const share=t=>{const xs=app.filter(s=>s.type===t);if(!xs.length) return 0;return xs.filter(s=>s.open).length/(all?xs.length:Math.max(xs.length,b.pages.length*(t==='word'?2:1)))};
-  return {narr:(()=>{const ps=b.pages.filter(p=>!p.cover);return ps.length?ps.filter(p=>p.own.some(o=>o.type==='voice'&&o.audio)).length/ps.length:0})(),word:share('word'),fact:share('fact'),qa:b.pages.some(p=>p.own.some(o=>o.type==='q'&&o.qAudio&&o.aAudio))?1:0};
+  return {narr:(()=>{const ps=b.pages.filter(p=>!p.cover);return ps.length?ps.filter(p=>hasNarr(p)).length/ps.length:0})(),word:share('word'),fact:share('fact'),qa:b.pages.some(p=>p.own.some(o=>o.type==='q'&&o.qAudio&&o.aAudio))?1:0};
 }
 let CID=0;
 const solid=T=>`<path d="${T.shape}" fill="${T.c}"/><path d="${T.g}" fill="none" stroke="${T.gOut?T.c:'#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -424,7 +428,8 @@ async function renderLib(){
   $('#shelves').innerHTML=h;
 }
 
-const bookClips=b=>b.pages.flatMap(p=>[...p.own].sort((a,c)=>a.y-c.y||a.x-c.x).flatMap(o=>o.type==='voice'?[o.audio]:[o.qAudio,o.aAudio])).filter(Boolean);
+const hasNarr=p=>p.own.some(o=>o.type==='voice'&&o.audio)||p.stickers.some(s=>s.type==='play'&&s.audio);
+const bookClips=b=>b.pages.flatMap(p=>[...p.stickers.filter(s=>s.type==='play'),...p.own].sort((a,c)=>a.y-c.y||a.x-c.x).flatMap(o=>o.type==='voice'||o.type==='play'?[o.audio]:[o.qAudio,o.aAudio])).filter(Boolean);
 const PLAYI='<svg viewBox="0 0 24 24"><path d="M9 6.8v10.4c0 .8.9 1.3 1.6.8l7.6-5.2c.6-.4.6-1.2 0-1.6L10.6 6c-.7-.5-1.6 0-1.6.8z"/></svg>';
 const STOPI='<svg viewBox="0 0 24 24"><rect x="7.5" y="7.5" width="9" height="9" rx="1.8"/></svg>';
 let bookPlay=null;
@@ -466,7 +471,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='55';
+const APPV='56';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -573,7 +578,7 @@ const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
 /* progress row under the title: the cover icons with how many are done */
 function counts(b){const app=b.pages.flatMap(p=>p.stickers),story=b.pages.filter(p=>!p.cover),n=t=>app.filter(s=>s.type===t);
-  return {narr:[story.filter(p=>p.own.some(o=>o.type==='voice'&&o.audio)).length,story.length],word:[n('word').filter(s=>s.open).length,n('word').length],
+  return {narr:[story.filter(p=>hasNarr(p)).length,story.length],word:[n('word').filter(s=>s.open).length,n('word').length],
     fact:[n('fact').filter(s=>s.open).length,n('fact').length],qa:[b.pages.flatMap(p=>p.own).filter(o=>o.type==='q'&&o.qAudio&&o.aAudio).length,b.pages.flatMap(p=>p.own).filter(o=>o.type==='q').length]}}
 const PNAME={narr:'Family narration, pages',word:'Words opened',fact:'Fun facts opened',qa:'Questions answered'};
 function renderProg(){const b=book(),pr=progress(b),c=counts(b);
@@ -776,6 +781,7 @@ const say=(t,rate=.8)=>{try{stopAudio();const u=new SpeechSynthesisUtterance(t);
 let rec=null;
 async function recordToggle(btnEl,onDone){
   if(rec){rec.stop();return}
+  stopAudio();
   let ms;try{ms=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){toast('Allow the microphone for this page to record.');return}
   const type=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
   const r=new MediaRecorder(ms,type?{mimeType:type}:undefined),chunks=[];rec=r;btnEl.classList.add('on');
@@ -789,10 +795,19 @@ const colourWord=w=>[...w].map(ch=>`<span class="${'aeiou'.includes(ch)?'v':'c'}
 function recRow(label,id,field,o){return `<div class="rec"><button class="recbtn" data-rec="${field}" aria-label="Record ${label}">${MIC}</button><div style="flex:1"><b style="font-weight:500">${label}</b><div class="note">${id?'Recorded. Tap the red button to record again.':'Tap the red button, speak, then tap it again to stop.'}</div></div><button class="act" style="flex:none;width:80px" data-play="${field}" ${id?'':'disabled'}>Play</button></div>`}
 function openSticker(s){if(!s) return;
   const hd=`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>${{play:'Read aloud',word:'New word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]}</h3></div>`;
-  if(s.type==='play'){markOpen(s);const v=page().own.find(o=>o.type==='voice'&&o.audio);
-    if(v){play(v.audio);const el=document.querySelector(`.st[data-id="${s.id}"]`);if(el){el.classList.add('playing');setTimeout(()=>el.classList.remove('playing'),3000)}return}
-    if(page().text){say(page().text,.85);return}
-    sheet(`${hd}<p>No family voice on this page yet. Tap the plus, choose Voice and read this page aloud. Then this sticker plays it.</p><div class="row"><button class="act main" data-close>OK</button></div>`);return}
+  /* narration panel: play the page, record the family voice (Bell 31 Oct 2026) */
+  if(s.type==='play'){markOpen(s);
+    const fam=()=>s.audio||(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio;
+    const btnP=()=>$('#nplay');let on=false;
+    const show=v=>{on=v;const b=btnP();if(!b) return;b.innerHTML=v?STOPI:PLAYI;b.setAttribute('aria-label',v?'Stop':'Play');b.classList.toggle('on',v)};
+    const go=async()=>{if(on){stopAudio();show(false);return}const a=fam();
+      if(a){await play(a);show(true);if(player) player.onended=()=>show(false)}
+      else if(page().text){say(page().text,.85);show(true);const t0=setInterval(()=>{try{if(!speechSynthesis.speaking){clearInterval(t0);show(false)}}catch(e){clearInterval(t0)}},400)}
+      else toast('Record a family voice first.')};
+    sheet(`${hd}<div class="narr"><button class="nplay" id="nplay" aria-label="Play">${PLAYI}</button><p class="note">${fam()?'Plays your family voice.':'Plays the phone voice. Record your own voice below.'}</p></div>
+      <div class="rec"><button class="recbtn" data-rec="audio" aria-label="Record">${MIC}</button><div style="flex:1"><b style="font-weight:500">${s.audio?'Record again':'Record this page'}</b><div class="note">Tap the red button, read the page, then tap it again.</div></div></div>
+      <div class="row"><button class="act main" data-close>Done</button></div><p class="note">Recordings stay on this phone.</p>`,c=>{c.querySelector('#nplay').onclick=go;wireRec(c,s)},true);
+    go();return}
   if(s.type==='word'){markOpen(s);sheet(`${hd}<div class="word" aria-label="${esc(s.word)}">${colourWord(s.word)}</div><p id="def" class="note">${s.def?esc(s.def):''}</p><div class="row"><button class="act" id="slow">Say it slowly</button><button class="act main" data-close>Got it</button></div><p class="note">Blue letters are consonants. Red letters are vowels.</p>`,c=>{c.querySelector('#slow').onclick=()=>say(s.word.split('').join(' ')+'. '+s.word);if(!s.def) define(s)});return}
   if(s.type==='fact'){markOpen(s);sheet(`${hd}<p>${esc(s.fact)}</p><div class="row"><button class="act" id="hear">Hear it</button><button class="act main" data-close>Wow!</button></div>`,c=>{c.querySelector('#hear').onclick=()=>say(s.fact)});return}
   const rows=s.type==='voice'?recRow('Read this part','audio' in s&&s.audio,'audio',s):recRow('Child’s question',s.qAudio,'qAudio',s)+recRow('Family answer',s.aAudio,'aAudio',s);

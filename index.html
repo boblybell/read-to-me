@@ -179,7 +179,9 @@ html,body{position:fixed;inset:0;overscroll-behavior:none}
 /* bottom page bar reaches the bottom edge; thumbnails sit well above the home bar and rounded corners (Bell 31 Oct 2026) */
 #glass .strip{height:auto;background:var(--banner);padding-top:10px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 3px);padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));scroll-padding:0 24px}
 #glass .stage{padding-bottom:10px}
-#app{height:100dvh}
+/* fill the whole screen, also in the Home Screen app (no black band at the bottom) */
+#app{position:fixed;top:0;bottom:0;left:0;right:0;height:auto;margin:0 auto}
+html{background:#3A3A3C}
 /* screens run up to the top edge; the header colour fills the status bar area (Bell 31 Oct 2026) */
 /* bar keeps its size and place; only the icon and title sit 9 px higher (Bell 31 Oct 2026) */
 #glass .bar{height:calc(44px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)));padding-top:max(4px,calc(env(safe-area-inset-top,0px) - 12px));padding-bottom:0;box-sizing:border-box}
@@ -410,7 +412,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='28';
+const APPV='29';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

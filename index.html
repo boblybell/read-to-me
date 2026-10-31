@@ -413,7 +413,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='32';
+const APPV='33';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -493,7 +493,7 @@ function counts(b){const app=b.pages.flatMap(p=>p.stickers),story=b.pages.filter
     fact:[n('fact').filter(s=>s.open).length,n('fact').length],qa:[b.pages.flatMap(p=>p.own).filter(o=>o.type==='q'&&o.qAudio&&o.aAudio).length,null]}}
 const PNAME={narr:'Family narration, pages',word:'Words opened',fact:'Fun facts opened',qa:'Questions answered'};
 function renderProg(){const b=book(),pr=progress(b),c=counts(b);
-  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b>${c[t][0]}${c[t][1]==null?'':'/'+c[t][1]}</b></span>`).join('')}
+  $('#prog').innerHTML=Object.keys(TYPES).map(t=>`<span class="pi" aria-label="${PNAME[t]}: ${c[t][0]}${c[t][1]==null?'':' of '+c[t][1]}">${icon(t,pr[t])}<b>${c[t][0]}</b></span>`).join('')}
 async function renderStrip(){renderProg();const b=book();let h='';
   for(const [i,p] of b.pages.entries()){const u=p.thumbData||await blobURL(p.thumb);
     h+=`<button class="th${i===S.page?' cur':''}" data-p="${i}" aria-label="${p.cover?'Cover':'Page '+i}">${u?`<img class="pg" src="${u}" alt="">`:EMPTY}${done(p)?OK:''}<span>${p.cover?'Cover':i}</span></button>`}

@@ -418,7 +418,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='30';
+const APPV='31';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -523,7 +523,8 @@ function drawStickers(stagger){const box=$('#stickers');box.innerHTML='';
     if(stagger) d.style.animationDelay=(i*160)+'ms';d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)})}
 
 /* one button */
-const SPARK='<svg viewBox="0 0 48 48" class="mag"><path d="M30.5 30.5l11 11" stroke="#1C1C1E" stroke-width="7.5" stroke-linecap="round"/><circle cx="20" cy="20" r="16" fill="#1C1C1E"/><circle cx="20" cy="20" r="12.2" fill="#fff"/><path d="M19.2 13.799999999999999Q20.68 19.72 26.6 21.2Q20.68 22.68 19.2 28.6Q17.72 22.68 11.799999999999999 21.2Q17.72 19.72 19.2 13.799999999999999Z" fill="#FFA41B"/><path d="M26.4 10.5Q27.02 12.98 29.5 13.6Q27.02 14.219999999999999 26.4 16.7Q25.779999999999998 14.219999999999999 23.299999999999997 13.6Q25.779999999999998 12.98 26.4 10.5Z" fill="#FFA41B"/><path d="M13.2 25Q13.6 26.6 15.2 27Q13.6 27.4 13.2 29Q12.799999999999999 27.4 11.2 27Q12.799999999999999 26.6 13.2 25Z" fill="#FFA41B"/></svg>';
+/* generate button: see-through lens (15% white), white sparkles (Bell 31 Oct 2026) */
+const SPARK='<svg viewBox="0 0 48 48" class="mag"><path d="M32.2 32.2l9.3 9.3" stroke="#1C1C1E" stroke-width="7.5" stroke-linecap="round"/><circle cx="20" cy="20" r="16" fill="none" stroke="#1C1C1E" stroke-width="3.8"/><circle cx="20" cy="20" r="14.1" fill="rgba(255,255,255,.15)"/><g fill="#fff"><path d="M19.2 13.8Q20.68 19.72 26.6 21.2Q20.68 22.68 19.2 28.6Q17.72 22.68 11.8 21.2Q17.72 19.72 19.2 13.8Z"/><path d="M26.4 10.5Q27.02 12.98 29.5 13.6Q27.02 14.22 26.4 16.7Q25.78 14.22 23.3 13.6Q25.78 12.98 26.4 10.5Z"/><path d="M13.2 25Q13.6 26.6 15.2 27Q13.6 27.4 13.2 29Q12.8 27.4 11.2 27Q12.8 26.6 13.2 25Z"/></g></svg>';
 const PLUSG='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>';
 const XG='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const CHECKW='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';

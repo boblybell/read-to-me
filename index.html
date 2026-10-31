@@ -173,6 +173,9 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .cbox i::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .cbox i[data-h=nw]{left:-10px;top:-10px}.cbox i[data-h=ne]{right:-10px;top:-10px}.cbox i[data-h=sw]{left:-10px;bottom:-10px}.cbox i[data-h=se]{right:-10px;bottom:-10px}
 .cropl.flash{pointer-events:none}.cropl.flash .cbox{box-shadow:0 0 0 2000px rgba(0,0,0,.25);border-color:#34C759;transition:none}.cropl.flash .cbox i{display:none}
+/* page strip at the bottom of the screen (Bell 31 Oct 2026) */
+#glass .stage{padding-bottom:6px}
+#glass .strip{height:auto;padding-top:8px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -214,7 +217,6 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
       <button class="back" id="backBtn" aria-label="Library"><svg viewBox="0 0 24 24"><rect x="3" y="15.5" width="18" height="5" rx="1.6"/><rect x="5" y="9.5" width="15" height="5" rx="1.6"/><rect x="3.5" y="3.5" width="16" height="5" rx="1.6" transform="rotate(-4 11.5 6)"/><rect class="k" x="5.5" y="17.3" width="9" height="1.3" rx=".65"/><rect class="k" x="7.5" y="11.3" width="7" height="1.3" rx=".65"/></svg></button>
       <h2 id="bookTitle"></h2>
     </header>
-    <nav class="strip" id="strip" aria-label="Pages"></nav>
     <div class="stage">
       <div class="lens" id="lens">
         <div class="world" id="world"><video id="cam" playsinline muted autoplay></video><div class="nocam" id="nocam" hidden></div><div id="stickers"></div></div>
@@ -227,6 +229,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
           <button class="btn" id="btn" aria-label="Generate"></button></div>
       </div>
     </div>
+    <nav class="strip" id="strip" aria-label="Pages"></nav>
   </section>
 
   <div class="sheet" id="sheet" hidden><div class="card" id="card" role="dialog" aria-modal="true"></div></div>
@@ -394,7 +397,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='13';
+const APPV='14';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

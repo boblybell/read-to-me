@@ -491,7 +491,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='61';
+const APPV='62';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -642,7 +642,7 @@ let nfly=null;
 function closeFly(){if(nfly){nfly.remove();nfly=null;stopAudio()}$('#stickers').classList.remove('flyopen');document.querySelectorAll('.st.flyhost').forEach(e=>e.classList.remove('flyhost'))}
 function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s.id}"]`);if(!el) return;
   const f=document.createElement('div');f.className='nfly';f.dataset.for=s.id;
-  f.innerHTML=`<button class="nb np" aria-label="Play">${PLAYI}</button><button class="nb nr" aria-label="Record your voice">${WAVE}</button>`;
+  f.innerHTML=`<button class="nb np" aria-label="Play">${PLAYI}</button><button class="nb nr" aria-label="Record your voice">${MIC}</button>`;
   $('#stickers').appendChild(f);nfly=f;flyPos();$('#stickers').classList.add('flyopen');el.classList.add('flyhost');
   const np=f.querySelector('.np'),fam=()=>s.audio||(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio;let on=false;
   const show=v=>{on=v;np.innerHTML=v?STOPI:PLAYI;np.classList.toggle('on',v);np.setAttribute('aria-label',v?'Stop':'Play')};

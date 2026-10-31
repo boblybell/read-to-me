@@ -137,7 +137,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 
 html{background:#111;-webkit-touch-callout:none}
 body{margin:0}
-html,body{position:fixed;top:0;left:0;right:0;height:var(--appH,100%);overscroll-behavior:none}
+html,body{position:fixed;inset:0;overscroll-behavior:none}
 #app{height:100%}
 .world video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .world .nocam{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:40px;color:#ddd;font:400 15px/22px var(--ui);background:#3a3230}
@@ -180,7 +180,7 @@ html,body{position:fixed;top:0;left:0;right:0;height:var(--appH,100%);overscroll
 #glass .strip{height:auto;background:var(--banner);padding-top:10px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 3px);padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));scroll-padding:0 24px}
 #glass .stage{padding-bottom:10px}
 /* fill the whole screen, also in the Home Screen app (no black band at the bottom) */
-#app{position:fixed;top:0;left:0;right:0;bottom:auto;height:var(--appH,100%);margin:0 auto}
+#app{position:fixed;top:0;bottom:0;left:0;right:0;height:auto;margin:0 auto}
 html{background:#3A3A3C}
 /* screens run up to the top edge; the header colour fills the status bar area (Bell 31 Oct 2026) */
 /* bar keeps its size and place; only the icon and title sit 9 px higher (Bell 31 Oct 2026) */
@@ -190,6 +190,7 @@ html{background:#3A3A3C}
 #glass .prog .pi{display:flex;align-items:center;gap:6px}
 #glass .prog .li{width:20px;height:20px}
 #glass .prog b{font:500 14px/1 var(--ui);color:#fff;font-variant-numeric:tabular-nums}
+#cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -255,12 +256,6 @@ html{background:#3A3A3C}
 <script>
 (() => {
 'use strict';
-/* iPhone Home Screen app: the page height comes out shorter than the screen by the status bar,
-   which leaves a band at the bottom. Use the real screen height there. */
-function fitScreen(){const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
-  const portrait=innerHeight>=innerWidth,h=standalone?(portrait?Math.max(screen.height,screen.width):Math.min(screen.height,screen.width)):innerHeight;
-  document.documentElement.style.setProperty('--appH',Math.max(h,innerHeight)+'px')}
-fitScreen();addEventListener('resize',fitScreen);addEventListener('orientationchange',()=>setTimeout(fitScreen,300));
 const art = {
   fox: (w,h)=>`<rect width="${w}" height="${h}" fill="#A1CDD7"/><circle cx="${w*.78}" cy="${h*.22}" r="${h*.1}" fill="#F9E688"/><path d="M0 ${h*.72} Q${w*.4} ${h*.55} ${w} ${h*.68} V${h} H0Z" fill="#41A67A"/><g transform="translate(${w*.5} ${h*.62}) scale(${h/120})"><path d="M-30 6 Q-52 -4 -48 -22 Q-38 -4 -20 0Z" fill="#F6720D"/><ellipse cx="0" cy="8" rx="24" ry="12" fill="#F6720D"/><circle cx="24" cy="-4" r="11" fill="#F6720D"/><path d="M17 -11 18 -26 26 -14ZM26 -14 32 -26 34 -9Z" fill="#F6720D"/><path d="M32 -2 46 3 32 7Z" fill="#F4F2F2"/><circle cx="27" cy="-6" r="1.8" fill="#15191A"/></g>`,
   moon: (w,h)=>`<rect width="${w}" height="${h}" fill="#203B68"/><circle cx="${w*.62}" cy="${h*.38}" r="${h*.2}" fill="#F9E688"/><circle cx="${w*.7}" cy="${h*.32}" r="${h*.18}" fill="#203B68"/><g fill="#F4F2F2"><circle cx="${w*.2}" cy="${h*.2}" r="2"/><circle cx="${w*.35}" cy="${h*.55}" r="1.6"/><circle cx="${w*.85}" cy="${h*.7}" r="2"/><circle cx="${w*.15}" cy="${h*.75}" r="1.4"/></g>`,
@@ -418,7 +413,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='31';
+const APPV='32';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -427,6 +422,7 @@ async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInlin
     if($('#glass').hidden){camOff();return}
     v.srcObject=stream}
   setTimeout(()=>{if(stream&&!$('#glass').hidden&&!v.videoWidth){n.hidden=false;n.textContent='The camera started, but no picture came. Close the app fully and open it again.'}},4000);
+  v.onpause=()=>{if(stream&&!$('#glass').hidden&&!document.hidden){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}};
   n.hidden=true;try{await v.play()}catch(e){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}}
 function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); else if(!$('#glass').hidden) camOn()});
@@ -634,6 +630,8 @@ function wireRec(c,s){c.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>
 let zoom=1;const pts=new Map();let z0=1,d0=0;
 function setZoom(z){zoom=Math.min(4,Math.max(1,z));$('#world').style.transform=zoom>1?`scale(${zoom})`:'none'}
 const lens=$('#lens');
+/* the phone can pause the camera video (for example after the app was in the background); any tap starts it again */
+document.addEventListener('pointerdown',()=>{const v=$('#cam');if(stream&&v.paused&&!$('#glass').hidden) v.play().then(()=>{$('#nocam').hidden=true}).catch(()=>{})},true);
 lens.addEventListener('pointerdown',e=>{if(e.target.closest('.btnwrap')) return;pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2){const [a,b]=[...pts.values()];d0=Math.hypot(a[0]-b[0],a[1]-b[1]);z0=zoom}});
 lens.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId)) return;pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2&&d0){const [a,b]=[...pts.values()];setZoom(z0*Math.hypot(a[0]-b[0],a[1]-b[1])/d0)}});
 ['pointerup','pointercancel'].forEach(ev=>lens.addEventListener(ev,e=>{pts.delete(e.pointerId);if(pts.size<2) d0=0}));

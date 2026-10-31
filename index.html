@@ -243,7 +243,7 @@ body{margin:0}
 @keyframes recpulse{50%{box-shadow:0 0 0 6px rgba(215,55,47,.3)}}
 #stickers .st.flyhost{opacity:0}
 #stickers.lost .nfly{opacity:0;pointer-events:none}
-#stickers.flyopen .st:not(.flyhost){opacity:.25;pointer-events:none}
+#stickers.flyopen .st:not(.flyhost){opacity:.25}
 #still{position:absolute;left:0;top:0;max-width:none;max-height:none;object-fit:fill;z-index:1;border-radius:6px}
 #world.stillmode{background:#2A2A2C}
 #world.stillmode video{visibility:hidden}
@@ -491,7 +491,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='62';
+const APPV='63';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -633,7 +633,7 @@ function stillRect(){const el=$('#still'),g=$('#glass'),W=$('#world').offsetWidt
   const cw=b.w*iw,ch=b.h*ih,k=Math.min(aw/cw,ah/ch),dw=iw*k,dh=ih*k,l=ax+(aw-cw*k)/2-b.x*dw,t=ay+(ah-ch*k)/2-b.y*dh;return {W,H,dw,dh,l,t,b}}
 function layoutStill(){const el=$('#still');if(!stillOn()){$('#world').classList.remove('stillmode');return}const r=stillRect(),b=r.b;
   Object.assign(el.style,{left:r.l+'px',top:r.t+'px',width:r.dw+'px',height:r.dh+'px',clipPath:`inset(${b.y*r.dh}px ${(1-b.x-b.w)*r.dw}px ${(1-b.y-b.h)*r.dh}px ${b.x*r.dw}px round 6px)`});$('#world').classList.add('stillmode')}
-addEventListener('resize',()=>{layoutStill();placeStickers()});
+addEventListener('resize',()=>{if(!S||S.cur==null||$('#glass').hidden) return;layoutStill();placeStickers()});
 async function renderPage(){$('#stickers').innerHTML='';setZoom(1);renderBtn();const p=page();
   if(p.scanned){await showStill();if(p!==page()) return;drawStickers(!shown[key()]);shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers(false)}
   placeStickers()}
@@ -889,9 +889,11 @@ document.addEventListener('gesturestart',e=>e.preventDefault());
 /* long hold a sticker, then drag to move it */
 let drag=null,noClick=false;
 lens.addEventListener('pointerdown',e=>{const st=e.target.closest('.st');if(!st||mode!=='idle'||!st.closest('#stickers')) return;
+  /* a faded sticker can still be held and moved: the read-aloud pill closes first (Bell 31 Oct 2026) */
+  if(nfly&&!st.classList.contains('flyhost')){if(rec) return;closeFly()}
   const sx=e.clientX,sy=e.clientY;drag={st,id:e.pointerId,sx,sy,on:false,t:setTimeout(()=>{if(!drag||pts.size>1) return;drag.on=true;st.classList.add('lift');try{st.setPointerCapture(drag.id)}catch(_){}try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}},450)}});
 lens.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;
-  if(!drag.on){if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>10||pts.size>1){clearTimeout(drag.t);drag=null}return}
+  if(!drag.on){if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>16||pts.size>1){clearTimeout(drag.t);drag=null}return}
   const r=$('#world').getBoundingClientRect();drag.x=Math.min(.95,Math.max(.05,(e.clientX-r.left)/r.width));drag.y=Math.min(.95,Math.max(.05,(e.clientY-r.top)/r.height));
   drag.st.style.left=(drag.x*100)+'%';drag.st.style.top=(drag.y*100)+'%'});
 ['pointerup','pointercancel'].forEach(ev=>lens.addEventListener(ev,e=>{if(!drag||e.pointerId!==drag.id) return;clearTimeout(drag.t);

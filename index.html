@@ -192,6 +192,8 @@ body{margin:0}
 #glass .bar h2{font:800 22px/28px var(--num);letter-spacing:0}
 /* all titles in Nunito ExtraBold (Bell 31 Oct 2026) */
 .ltop h1,.card h3,.word,.book .nm{font-family:var(--num);font-weight:800;letter-spacing:0}
+/* library icon and book title 3 px lower; bar size unchanged (Bell 31 Oct 2026) */
+#glass .bar>*{position:relative;top:3px}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -431,7 +433,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='39';
+const APPV='40';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

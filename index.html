@@ -136,7 +136,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.st,.mi .st,.card{animation:none}.delmode .st{animation:none}}
 
 html{background:#111;-webkit-touch-callout:none}
-body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
+body{margin:0}
 #app{height:100%}
 .world video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .world .nocam{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:40px;color:#ddd;font:400 15px/22px var(--ui);background:#3a3230}
@@ -179,6 +179,9 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 #glass .strip{height:auto;background:var(--banner);padding-top:10px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));scroll-padding:0 24px}
 #glass .stage{padding-bottom:10px}
 #app{height:100dvh}
+/* screens run up to the top edge; the header colour fills the status bar area (Bell 31 Oct 2026) */
+#glass .bar{height:calc(56px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
+#lib .ltop{height:calc(64px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -400,7 +403,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='18';
+const APPV='19';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

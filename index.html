@@ -180,7 +180,7 @@ body{margin:0}
 #glass .stage{padding-bottom:10px}
 #app{height:100dvh}
 /* screens run up to the top edge; the header colour fills the status bar area (Bell 31 Oct 2026) */
-#glass .bar{height:calc(56px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
+#glass .bar{height:calc(47px + env(safe-area-inset-top,0px));padding-top:max(0px,calc(env(safe-area-inset-top,0px) - 9px));box-sizing:border-box}
 #lib .ltop{height:calc(64px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
@@ -403,7 +403,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='24';
+const APPV='25';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

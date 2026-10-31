@@ -438,7 +438,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='44';
+const APPV='45';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -509,7 +509,8 @@ async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save(
   camOn();ocrWorker().catch(()=>{});stripCenter=true;await renderStrip();renderPage();
   hint(page().scanned?'Tap the page you are on, then hold the magnifier.':'Hold the magnifier until the ring is full. Keep the phone still.')}
 $('#backBtn').onclick=()=>{endCrop(false);closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
-function done(p){return p.scanned&&p.stickers.length&&p.stickers.every(s=>s.open)}
+/* green check = page scanned and stickers appeared (Bell 31 Oct 2026; was: all stickers opened) */
+function done(p){return !!(p.scanned&&p.stickers.length)}
 const OK='<svg class="ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#34C759"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const EMPTY='<svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" fill="#4a4a4d"/></svg>';
 /* progress row under the title: the cover icons with how many are done */

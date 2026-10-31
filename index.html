@@ -224,10 +224,21 @@ body{margin:0}
 #glass .th svg.pg,#glass .th img.pg{box-shadow:0 1px 4px rgba(0,0,0,.22)}
 #glass .btnwrap{bottom:calc(98px + env(safe-area-inset-bottom,0px))}
 #glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
-.narr{display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0 14px}
-.nplay{width:84px;height:84px;border-radius:50%;background:#1FC2C2;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.nplay svg{width:40px;height:40px;fill:#fff}
-.nplay.on{background:#1C1C1E}
+/* read-aloud sticker grows into a teal pill with two buttons: play/stop and record (Bell 31 Oct 2026) */
+.nfly{position:absolute;z-index:4;display:flex;align-items:center;gap:4px;height:46px;padding:3px;border-radius:23px;background:#1FC2C2;box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translate(-23px,-23px);transform-origin:23px 50%;animation:pillgrow .22s ease-out both}
+.nfly.flip{transform:translate(calc(-100% + 23px),-23px);transform-origin:calc(100% - 23px) 50%;flex-direction:row-reverse}
+@keyframes pillgrow{from{clip-path:inset(0 calc(100% - 46px) 0 0 round 23px)}to{clip-path:inset(0 0 0 0 round 23px)}}
+.nfly.flip{animation-name:pillgrowl}
+@keyframes pillgrowl{from{clip-path:inset(0 0 0 calc(100% - 46px) round 23px)}to{clip-path:inset(0 0 0 0 round 23px)}}
+.nfly .nb{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
+.nfly .nb svg{width:20px;height:20px;fill:#fff}
+.nfly .np svg{fill:#1C1C1E}
+.nfly .np.on{background:rgba(0,0,0,.12)}
+.nfly .nr{background:#D7372F}.nfly .nr.on{animation:recpulse 1s ease-in-out infinite}
+@keyframes recpulse{50%{box-shadow:0 0 0 6px rgba(215,55,47,.3)}}
+#stickers .st.flyhost{opacity:0}
+#stickers.lost .nfly{opacity:0;pointer-events:none}
+#stickers.flyopen .st:not(.flyhost){opacity:.25;pointer-events:none}
 :root{--num:"Nunito","Figtree",system-ui,sans-serif}
 #cam::-webkit-media-controls,#cam::-webkit-media-controls-start-playback-button,#cam::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none}
 /* iPhone Home Screen app with a see-through status bar: the page height (100%) is the screen minus the
@@ -471,7 +482,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='56';
+const APPV='57';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -604,7 +615,30 @@ const SH={
 const stickerHTML=(t,extra='')=>`<svg class="b" viewBox="0 0 46 46">${SH[t].shape(SH[t].fill)}</svg><svg class="g" viewBox="0 0 24 24">${SH[t].g}</svg>${extra}`;
 function renderPage(){$('#stickers').innerHTML='';if(shown[key()]) drawStickers(false);placeStickers();setZoom(1);renderBtn()}
 const allStickers=()=>[...page().stickers,...page().own];
-function drawStickers(stagger){const box=$('#stickers');box.innerHTML='';
+let nfly=null;
+function closeFly(){if(nfly){nfly.remove();nfly=null;stopAudio()}$('#stickers').classList.remove('flyopen');document.querySelectorAll('.st.flyhost').forEach(e=>e.classList.remove('flyhost'))}
+function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s.id}"]`);if(!el) return;
+  const f=document.createElement('div');f.className='nfly';f.dataset.for=s.id;
+  f.innerHTML=`<button class="nb np" aria-label="Play">${PLAYI}</button><button class="nb nr" aria-label="Record your voice">${MIC}</button>`;
+  $('#stickers').appendChild(f);nfly=f;flyPos();$('#stickers').classList.add('flyopen');el.classList.add('flyhost');
+  const np=f.querySelector('.np'),fam=()=>s.audio||(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio;let on=false;
+  const show=v=>{on=v;np.innerHTML=v?STOPI:PLAYI;np.classList.toggle('on',v);np.setAttribute('aria-label',v?'Stop':'Play')};
+  const go=async()=>{if(on){stopAudio();show(false);return}const a=fam();
+    if(a){await play(a);show(true);if(player) player.onended=()=>show(false)}
+    else if(page().text){say(page().text,.85);show(true);const t0=setInterval(()=>{try{if(!speechSynthesis.speaking){clearInterval(t0);show(false)}}catch(e){clearInterval(t0)}},400)}
+    else toast('Tap the red button to record this page.')};
+  np.onclick=e=>{e.stopPropagation();go()};
+  /* a short warning first, then record (Bell 31 Oct 2026) */
+  const nr=f.querySelector('.nr');
+  const startRec=()=>{show(false);hint('Recording. Read the page aloud, then tap the red button.',true);
+    recordToggle(nr,id=>{hint('');if(s.audio) blobDel(s.audio).catch(()=>{});s.audio=id;save();renderStrip();toast('Saved. This sticker now plays your voice.')})};
+  nr.onclick=e=>{e.stopPropagation();if(rec){rec.stop();hint('');return}stopAudio();show(false);
+    sheet(`<div class="hd"><span class="st">${stickerHTML('play')}</span><h3>Record this page?</h3></div><p>${s.audio?'This replaces the voice you recorded before.':'The microphone turns on. Read the page aloud, then tap the red button to stop.'}</p><p class="note">Your voice stays on this phone. It is not sent anywhere.</p><div class="row"><button class="act" data-close>Cancel</button><button class="act danger" id="recGo">Record</button></div>`,
+      c=>{c.querySelector('#recGo').onclick=()=>{closeSheet();startRec()}})};
+  go()}
+function flyPos(){if(!nfly) return;const el=document.querySelector(`.st[data-id="${nfly.dataset.for}"]`);if(!el){nfly.remove();nfly=null;return}
+  nfly.style.left=el.style.left;nfly.style.top=el.style.top;nfly.classList.toggle('flip',parseFloat(el.style.left)>62)}
+function drawStickers(stagger){const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
   allStickers().forEach((s,i)=>{const d=document.createElement('button');d.className='st'+(s.open?' seen':'');d.dataset.id=s.id;
     d.style.left=(s.x*100)+'%';d.style.top=(s.y*100)+'%';d.setAttribute('aria-label',{play:'Read aloud',word:'Word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]);
     if(stagger) d.style.animationDelay=(i*160)+'ms';d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
@@ -670,7 +704,7 @@ function placeStickers(){const box=$('#stickers'),p=page(),on=tracked();box.clas
     /* steady stickers: shakes under 14 px are ignored, moves under 90 px are eased, big moves jump; a short miss does not hide them (Bell 31 Oct 2026) */
     const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight,c=el._p;
     if(c){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<14) return;if(dd<90){q[0]=c[0]+(q[0]-c[0])*.25;q[1]=c[1]+(q[1]-c[1])*.25}}
-    el._p=q;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)})}
+    el._p=q;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)});flyPos()}
 async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null) return;
   try{await loadFeat();const f=liveFrame();
     if(f&&mode!=='crop'&&!busy){const cur=features(f.data,f.w,f.h,null);trk.cv={w:f.w,h:f.h};
@@ -764,6 +798,7 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m
   if(k==='crop') recrop(S.page)});
 function setDel(on){mode=on?'delete':(mode==='delete'?'idle':mode);$('#stickers').classList.toggle('delmode',on);renderBtn();if(on) hint('Tap a sticker to remove it. Tap the button to finish.',true);else hint('')}
 $('#lens').addEventListener('click',e=>{
+  if(e.target.closest('.nfly')) return;
   if(e.target.closest('.btnwrap,.menu,.menu2')) return;const st=e.target.closest('.st');
   if(mode==='delete'&&st){const id=st.dataset.id,p=page();const o=p.own.find(s=>s.id===id);if(o) [o.audio,o.qAudio,o.aAudio].filter(Boolean).forEach(x=>blobDel(x).catch(()=>{}));
     p.stickers=p.stickers.filter(s=>s.id!==id);p.own=p.own.filter(s=>s.id!==id);save();st.remove();renderStrip();return}
@@ -772,6 +807,7 @@ $('#lens').addEventListener('click',e=>{
     const t=mode.split(':')[1];const o={id:uid(),type:t,x,y,open:true};
     page().own.push(o);save();mode='idle';renderBtn();drawStickers(false);hint('');openSticker(o);return}
   if(st&&mode==='idle'){openSticker(allStickers().find(s=>s.id===st.dataset.id));return}
+  if(mode==='idle'&&!st&&nfly){closeFly();return}
   if(mode==='idle'&&!st&&!e.target.closest('.nocam')&&performance.now()-pinchAt>400){$('#glass').classList.toggle('full')}});
 
 /* audio: record and play, kept on this phone */
@@ -795,19 +831,8 @@ const colourWord=w=>[...w].map(ch=>`<span class="${'aeiou'.includes(ch)?'v':'c'}
 function recRow(label,id,field,o){return `<div class="rec"><button class="recbtn" data-rec="${field}" aria-label="Record ${label}">${MIC}</button><div style="flex:1"><b style="font-weight:500">${label}</b><div class="note">${id?'Recorded. Tap the red button to record again.':'Tap the red button, speak, then tap it again to stop.'}</div></div><button class="act" style="flex:none;width:80px" data-play="${field}" ${id?'':'disabled'}>Play</button></div>`}
 function openSticker(s){if(!s) return;
   const hd=`<div class="hd"><span class="st">${stickerHTML(s.type)}</span><h3>${{play:'Read aloud',word:'New word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]}</h3></div>`;
-  /* narration panel: play the page, record the family voice (Bell 31 Oct 2026) */
-  if(s.type==='play'){markOpen(s);
-    const fam=()=>s.audio||(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio;
-    const btnP=()=>$('#nplay');let on=false;
-    const show=v=>{on=v;const b=btnP();if(!b) return;b.innerHTML=v?STOPI:PLAYI;b.setAttribute('aria-label',v?'Stop':'Play');b.classList.toggle('on',v)};
-    const go=async()=>{if(on){stopAudio();show(false);return}const a=fam();
-      if(a){await play(a);show(true);if(player) player.onended=()=>show(false)}
-      else if(page().text){say(page().text,.85);show(true);const t0=setInterval(()=>{try{if(!speechSynthesis.speaking){clearInterval(t0);show(false)}}catch(e){clearInterval(t0)}},400)}
-      else toast('Record a family voice first.')};
-    sheet(`${hd}<div class="narr"><button class="nplay" id="nplay" aria-label="Play">${PLAYI}</button><p class="note">${fam()?'Plays your family voice.':'Plays the phone voice. Record your own voice below.'}</p></div>
-      <div class="rec"><button class="recbtn" data-rec="audio" aria-label="Record">${MIC}</button><div style="flex:1"><b style="font-weight:500">${s.audio?'Record again':'Record this page'}</b><div class="note">Tap the red button, read the page, then tap it again.</div></div></div>
-      <div class="row"><button class="act main" data-close>Done</button></div><p class="note">Recordings stay on this phone.</p>`,c=>{c.querySelector('#nplay').onclick=go;wireRec(c,s)},true);
-    go();return}
+  /* read-aloud sticker: two small buttons pop out of it, play/stop and record; no panel (Bell 31 Oct 2026) */
+  if(s.type==='play'){markOpen(s);if(nfly&&nfly.dataset.for===s.id){closeFly();return}openFly(s);return}
   if(s.type==='word'){markOpen(s);sheet(`${hd}<div class="word" aria-label="${esc(s.word)}">${colourWord(s.word)}</div><p id="def" class="note">${s.def?esc(s.def):''}</p><div class="row"><button class="act" id="slow">Say it slowly</button><button class="act main" data-close>Got it</button></div><p class="note">Blue letters are consonants. Red letters are vowels.</p>`,c=>{c.querySelector('#slow').onclick=()=>say(s.word.split('').join(' ')+'. '+s.word);if(!s.def) define(s)});return}
   if(s.type==='fact'){markOpen(s);sheet(`${hd}<p>${esc(s.fact)}</p><div class="row"><button class="act" id="hear">Hear it</button><button class="act main" data-close>Wow!</button></div>`,c=>{c.querySelector('#hear').onclick=()=>say(s.fact)});return}
   const rows=s.type==='voice'?recRow('Read this part','audio' in s&&s.audio,'audio',s):recRow('Child’s question',s.qAudio,'qAudio',s)+recRow('Family answer',s.aAudio,'aAudio',s);

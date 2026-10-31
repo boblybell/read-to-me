@@ -436,6 +436,8 @@ function askDelete(i){const b=S.books[i];
     c.querySelector('#delBook').onclick=async()=>{const ids=[b.cover,...b.pages.flatMap(p=>[p.thumb,p.frame,...p.own.flatMap(o=>[o.audio,o.qAudio,o.aAudio])])].filter(Boolean);
       for(const id of ids) await blobDel(id).catch(()=>{});S.books.splice(i,1);save();closeSheet();renderLib();toast('Book removed.')}})}
 let newCover=null;
+/* plain cover colours for new books (this list was lost on 30 Oct 2026, so Add book stopped working) */
+const COLORS=['#A1CDD7','#203B68','#F9E688','#269ACE','#41A67A','#5CAACC','#5AADA6','#A1579E','#F6720D'];
 function addBookSheet(){newCover=null;
   sheet(`<div class="hd"><h3>Add a book</h3></div><div class="row" style="align-items:center"><button class="covprev" id="covBtn">Tap to take a cover photo</button><div class="field" style="flex:1">Book title<input type="text" id="bkTitle" maxlength="60" placeholder="The Very Hungry Caterpillar" autocomplete="off"></div></div><div class="row"><button class="act" data-close>Cancel</button><button class="act main" id="bkSave">Add book</button></div><p class="note">The photo and everything you add stay on this phone.</p>`,c=>{
     c.querySelector('#covBtn').onclick=()=>$('#coverFile').click();
@@ -451,7 +453,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='49';
+const APPV='50';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

@@ -451,7 +451,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='48';
+const APPV='49';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -627,12 +627,10 @@ async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null
       let found=-1,H=null;for(const i of order){const r=await pageRef(b.pages[i]);if(!r) continue;const h=matchPage(cur,r);if(h){found=i;H=h;break}}
       if(found>=0){trk.miss=0;trk.unknownSince=0;
         if(found!==trk.page){trk.page=found;trk.hits=1}else trk.hits++;trk.H=H;
-        if(found!==S.page&&trk.hits>=2&&performance.now()-trk.manualAt>1500){S.page=found;save();await renderStrip();renderPage();hint('')}}
-      else{trk.miss++;if(trk.miss>=3){trk.hits=0}
-        /* a page the app does not know: go to the next new page, no question asked */
-        if(scanned.length&&order.length>=Math.min(3,scanned.length)){if(!trk.unknownSince) trk.unknownSince=performance.now();
-          if(performance.now()-trk.unknownSince>2000&&page().scanned&&performance.now()-trk.manualAt>4000){
-            const nx=b.pages.findIndex((p,i)=>i>S.page&&!p.scanned);if(nx>0){S.page=nx;trk.unknownSince=0;save();await renderStrip();renderPage();hint('New page. Hold the magnifier to make stickers.')}}}}
+        /* a new page picked in the strip stays picked a while, so the parent can turn to it and scan */
+        const fresh=!page().scanned&&performance.now()-trk.manualAt<6000;
+        if(found!==S.page&&trk.hits>=(page().scanned?2:12)&&!fresh&&performance.now()-trk.manualAt>1500){S.page=found;save();await renderStrip();renderPage();hint('')}}
+      else{trk.miss++;if(trk.miss>=3){trk.hits=0}}
       if(page().scanned&&tracked()&&!shown[key()]){shown[key()]=true;drawStickers(true)}
       placeStickers()}}
   catch(e){console.warn('track',e)}

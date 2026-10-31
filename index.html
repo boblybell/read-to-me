@@ -491,7 +491,7 @@ $('#acctBtn').onclick=async()=>{let est='';try{const q=await navigator.storage.e
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='60';
+const APPV='61';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -642,7 +642,7 @@ let nfly=null;
 function closeFly(){if(nfly){nfly.remove();nfly=null;stopAudio()}$('#stickers').classList.remove('flyopen');document.querySelectorAll('.st.flyhost').forEach(e=>e.classList.remove('flyhost'))}
 function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s.id}"]`);if(!el) return;
   const f=document.createElement('div');f.className='nfly';f.dataset.for=s.id;
-  f.innerHTML=`<button class="nb np" aria-label="Play">${PLAYI}</button><button class="nb nr" aria-label="Record your voice">${MIC}</button>`;
+  f.innerHTML=`<button class="nb np" aria-label="Play">${PLAYI}</button><button class="nb nr" aria-label="Record your voice">${WAVE}</button>`;
   $('#stickers').appendChild(f);nfly=f;flyPos();$('#stickers').classList.add('flyopen');el.classList.add('flyhost');
   const np=f.querySelector('.np'),fam=()=>s.audio||(page().own.find(o=>o.type==='voice'&&o.audio)||{}).audio;let on=false;
   const show=v=>{on=v;np.innerHTML=v?STOPI:PLAYI;np.classList.toggle('on',v);np.setAttribute('aria-label',v?'Stop':'Play')};
@@ -842,13 +842,22 @@ let rec=null;
 async function recordToggle(btnEl,onDone){
   if(rec){rec.stop();return}
   stopAudio();
-  let ms;try{ms=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){toast('Allow the microphone for this page to record.');return}
+  /* make the sound context now, while the tap is fresh (iPhone needs this) */
+  let ac=null;try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  let ms;try{ms=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){if(ac) ac.close();toast('Allow the microphone for this page to record.');return}
   const type=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
   const r=new MediaRecorder(ms,type?{mimeType:type}:undefined),chunks=[];rec=r;btnEl.classList.add('on');
+  /* live wave: the bars on the red button move with the sound the microphone hears (Bell 31 Oct 2026) */
+  const icon0=btnEl.innerHTML;btnEl.innerHTML=WAVE;const bars=[...btnEl.querySelectorAll('rect')];let raf=0;
+  if(ac){try{ac.resume&&ac.resume();const an=ac.createAnalyser();an.fftSize=256;an.smoothingTimeConstant=.6;ac.createMediaStreamSource(ms).connect(an);
+    const d=new Uint8Array(an.frequencyBinCount),lv=bars.map(()=>0),W=[.7,1,.85,1,.7];
+    const tick=()=>{an.getByteFrequencyData(d);bars.forEach((b,i)=>{let m=0;const a=2+i*6;for(let j=a;j<a+6;j++) m+=d[j];m=Math.min(1,m/6/170*W[i]);lv[i]=Math.max(m,lv[i]*.8);
+      const h=4+lv[i]*16;b.setAttribute('y',12-h/2);b.setAttribute('height',h)});raf=requestAnimationFrame(tick)};tick()}catch(e){}}
   r.ondataavailable=e=>e.data.size&&chunks.push(e.data);
-  r.onstop=async()=>{ms.getTracks().forEach(t=>t.stop());rec=null;btnEl.classList.remove('on');const b=new Blob(chunks,{type:r.mimeType||type||'audio/mp4'});if(b.size<500){toast('That was too short. Try again.');return}
+  r.onstop=async()=>{ms.getTracks().forEach(t=>t.stop());cancelAnimationFrame(raf);if(ac) ac.close().catch(()=>{});btnEl.innerHTML=icon0;rec=null;btnEl.classList.remove('on');const b=new Blob(chunks,{type:r.mimeType||type||'audio/mp4'});if(b.size<500){toast('That was too short. Try again.');return}
     const id='a'+uid();await blobPut(id,b);onDone(id)};
   r.start()}
+const WAVE='<svg viewBox="0 0 24 24">'+[3,7.5,12,16.5,21].map((x,i)=>`<rect x="${x-1.5}" y="${12-[3,6,9,6,3][i]}" width="3" height="${[6,12,18,12,6][i]}" rx="1.5" fill="#fff"/>`).join('')+'</svg>';
 const MIC='<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
 function markOpen(s){if(!s.open){s.open=true;save();renderStrip();const el=document.querySelector(`.st[data-id="${s.id}"]`);if(el) el.classList.add('seen')}}
 const colourWord=w=>[...w].map(ch=>`<span class="${'aeiou'.includes(ch)?'v':'c'}">${esc(ch)}</span>`).join('');

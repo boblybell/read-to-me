@@ -555,7 +555,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='84';
+const APPV='85';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -664,7 +664,7 @@ async function edgeQuad(frame,box){try{const im=await loadImg(frame),w=160,h=Mat
   const top=hl(T,bx.y),bot=hl(Bt,bx.y+bx.h),lef=vl(Lf,bx.x),rig=vl(Rt,bx.x+bx.w);
   const X=(p,q)=>{const [[x1,y1],[x2,y2]]=p,[[x3,y3],[x4,y4]]=q,dd=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);if(Math.abs(dd)<1e-9) return null;
     const u=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/dd;return [x1+u*(x2-x1),y1+u*(y2-y1)]};
-  const P=[X(top,lef),X(top,rig),X(bot,rig),X(bot,lef)];if(P.some(v=>!v||v[0]<-.02||v[1]<-.02||v[0]>1.02||v[1]>1.02)) return null;
+  const P=[X(top,lef),X(top,rig),X(bot,rig),X(bot,lef)];if(P.some(v=>!v||v[0]<-.3||v[1]<-.3||v[0]>1.3||v[1]>1.3)) return null;
   const cl=P.map(([x,y])=>[Math.max(0,Math.min(1,x)),Math.max(0,Math.min(1,y))]);
   let ar=0;for(let k=0;k<4;k++){const [x0,y0]=cl[k],[x1,y1]=cl[(k+1)%4];ar+=x0*y1-x1*y0}if(Math.abs(ar)/2<.2) return null;
   return cl}catch(e){return null}}

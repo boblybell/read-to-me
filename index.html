@@ -210,7 +210,8 @@ body{margin:0}
 .ledge::before{left:0;right:0;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 100%,0 100%);background:linear-gradient(rgba(35,50,85,.42) 0,rgba(35,50,85,.2) 30%,rgba(255,255,255,.35) 65%,rgba(255,255,255,.85) 100%);box-shadow:inset 0 1px 2px rgba(30,45,80,.25)}
 /* books sit inside the slanted shelf ends (Bell 1 Nov 2026) */
 #shelves .shelf{padding-left:32px;padding-right:32px}
-#shelves{margin-top:9px} /* 12 px lower than before (Bell 1 Nov 2026) */
+#shelves{margin-top:5px} /* 12 px lower than before (Bell 1 Nov 2026) */
+#shelves .shelf:first-child{padding-top:4px} /* room for the 3 px lift, so the top line of the plus box is not cut */
 /* shelf ends: the side edge of the top runs straight from the front corner back to the wall, in line with the cover edge (Bell 1 Nov 2026) */
 .book{box-shadow:7px 11px 16px -5px rgba(30,45,80,.22),-5px 10px 12px -4px rgba(30,45,80,.12),0 1px 1px rgba(20,30,55,.35)}
 .add{border-color:rgba(35,40,56,.22)}
@@ -368,7 +369,7 @@ body{overflow:visible}
 (() => {
 'use strict';
 const art = {
-  fox: (w,h)=>`<rect width="${w}" height="${h}" fill="#A1CDD7"/><circle cx="${w*.78}" cy="${h*.22}" r="${h*.1}" fill="#F9E688"/><path d="M0 ${h*.72} Q${w*.4} ${h*.55} ${w} ${h*.68} V${h} H0Z" fill="#41A67A"/><g transform="translate(${w*.5} ${h*.62}) scale(${h/120})"><path d="M-30 6 Q-52 -4 -48 -22 Q-38 -4 -20 0Z" fill="#F6720D"/><ellipse cx="0" cy="8" rx="24" ry="12" fill="#F6720D"/><circle cx="24" cy="-4" r="11" fill="#F6720D"/><path d="M17 -11 18 -26 26 -14ZM26 -14 32 -26 34 -9Z" fill="#F6720D"/><path d="M32 -2 46 3 32 7Z" fill="#F4F2F2"/><circle cx="27" cy="-6" r="1.8" fill="#15191A"/></g>`,
+  fox: (w,h)=>`<rect width="${w}" height="${h}" fill="#A1CDD7"/><circle cx="${w*.78}" cy="${h*.22}" r="${h*.1}" fill="#F9E688"/><path d="M0 ${h*.72} Q${w*.4} ${h*.55} ${w} ${h*.68} V${h} H0Z" fill="#41A67A"/><g transform="translate(${w*.5} ${h*.62}) scale(${h/120})"><path d="M-30 6 Q-52 -4 -48 -22 Q-38 -4 -20 0Z" fill="#F6720D"/><ellipse cx="0" cy="8" rx="24" ry="12" fill="#F6720D"/><circle cx="24" cy="-4" r="11" fill="#F6720D"/><path d="M17 -11 18 -26 26 -14ZM26 -14 32 -26 34 -9Z" fill="#F6720D"/><path d="M32 -2 46 3 32 7Z" fill="#F6720D"/><circle cx="45" cy="3" r="2" fill="#15191A"/><circle cx="27" cy="-6" r="1.8" fill="#15191A"/></g>`,
   moon: (w,h)=>`<rect width="${w}" height="${h}" fill="#203B68"/><circle cx="${w*.62}" cy="${h*.38}" r="${h*.2}" fill="#F9E688"/><circle cx="${w*.7}" cy="${h*.32}" r="${h*.18}" fill="#203B68"/><g fill="#F4F2F2"><circle cx="${w*.2}" cy="${h*.2}" r="2"/><circle cx="${w*.35}" cy="${h*.55}" r="1.6"/><circle cx="${w*.85}" cy="${h*.7}" r="2"/><circle cx="${w*.15}" cy="${h*.75}" r="1.4"/></g>`,
   bus: (w,h)=>`<rect width="${w}" height="${h}" fill="#F9E688"/><rect x="${w*.14}" y="${h*.36}" width="${w*.72}" height="${h*.36}" rx="6" fill="#B20E10"/><g fill="#A1CDD7"><rect x="${w*.2}" y="${h*.42}" width="${w*.14}" height="${h*.12}"/><rect x="${w*.4}" y="${h*.42}" width="${w*.14}" height="${h*.12}"/><rect x="${w*.6}" y="${h*.42}" width="${w*.14}" height="${h*.12}"/></g><circle cx="${w*.3}" cy="${h*.74}" r="${h*.07}" fill="#15191A"/><circle cx="${w*.7}" cy="${h*.74}" r="${h*.07}" fill="#15191A"/>`,
   sea: (w,h)=>`<rect width="${w}" height="${h}" fill="#269ACE"/><path d="M${w*.3} ${h*.5} q${w*.18} -${h*.16} ${w*.36} 0 q-${w*.18} ${h*.16} -${w*.36} 0z" fill="#F6720D"/><path d="M${w*.66} ${h*.5} l${w*.12} -${h*.1} v${h*.2}z" fill="#F6720D"/><circle cx="${w*.38}" cy="${h*.48}" r="2" fill="#15191A"/><g fill="#A1CDD7"><circle cx="${w*.2}" cy="${h*.25}" r="4"/><circle cx="${w*.26}" cy="${h*.15}" r="2.5"/></g><path d="M0 ${h*.85} Q${w*.25} ${h*.78} ${w*.5} ${h*.85} T${w} ${h*.85} V${h} H0Z" fill="#F9E688"/>`,
@@ -553,7 +554,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='78';
+const APPV='79';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

@@ -2,5 +2,9 @@
   "appId": "com.boblybell.readtome",
   "appName": "ReadToMe",
   "webDir": "www",
-  "ios": { "contentInset": "never", "allowsLinkPreview": false }
+  "server": {
+    "url": "https://boblybell.github.io/read-to-me/",
+    "allowNavigation": ["boblybell.github.io"]
+  },
+  "ios": { "contentInset": "never", "allowsLinkPreview": false, "limitsNavigationsToAppBoundDomains": true }
 }

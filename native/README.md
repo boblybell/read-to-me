@@ -32,13 +32,20 @@ Then in Xcode (`npx cap open ios`):
    - `NSCameraUsageDescription` = "ReadToMe uses the camera to see the book page."
    - `NSMicrophoneUsageDescription` = "ReadToMe records family voices for the stickers."
 4. Signing & Capabilities: Team = your Apple ID. Bundle ID `com.boblybell.readtome`.
+   - `WKAppBoundDomains` (Array) with one item: `boblybell.github.io`
+     (lets the app keep working offline, like the Home Screen web app).
 5. Deployment target: iOS 15.0 or newer (Apple's document finder needs iOS 15).
 6. Choose the iPhone at the top, press Run.
 
 ## Update after a change
 
+The app loads its pages live from https://boblybell.github.io/read-to-me/
+(`server.url` in capacitor.config.json). A change pushed to GitHub shows on the phone
+after you close and open the app. No Mac needed.
+
+Only a change to the native part (files in native/ios, or capacitor.config.json) needs the Mac:
 ```sh
-git pull && ./scripts/build-www.sh && npx cap copy ios
+git pull && ./scripts/build-www.sh && npx cap sync ios
 ```
 Then press Run in Xcode. Do not delete the app on the iPhone: that removes its books and recordings.
 

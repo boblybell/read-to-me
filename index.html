@@ -201,6 +201,9 @@ body{margin:0}
 /* covers and shelves 27 px higher in total (9 + 18, Bell 31 Oct 2026) */
 #shelves .shelf:first-child{padding-top:0}
 #shelves{margin-top:-3px}
+/* shelf ends: the slanted side of the shelf top starts exactly at the front corner (Bell 1 Nov 2026) */
+.ledge{border-radius:0 0 3px 3px}
+.ledge::before{left:0;right:0;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 100%,0 100%)}
 /* stickers follow the page; they fade when the page is not in the glass */
 #stickers .st{transition:left .12s linear,top .12s linear,opacity .25s}
 #stickers.lost .st,#stickers .st.off{opacity:0;pointer-events:none}
@@ -539,7 +542,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='75';
+const APPV='76';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

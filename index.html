@@ -172,6 +172,11 @@ body{margin:0}
 .cbox i{position:absolute;width:30px;height:30px}
 .cbox i::after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .cbox i[data-h=nw]{left:-10px;top:-10px}.cbox i[data-h=ne]{right:-10px;top:-10px}.cbox i[data-h=sw]{left:-10px;bottom:-10px}.cbox i[data-h=se]{right:-10px;bottom:-10px}
+.cq{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#cqShade{fill:rgba(0,0,0,.5)}.cropl.edit{box-shadow:0 0 0 2000px #1C1C1E}#cqLine{fill:rgba(255,255,255,.08);stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.ch{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;touch-action:none;z-index:2}
+.ch::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff;border:2px solid #34C759;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.cropl.flash .ch{display:none}.cropl.flash #cqShade{fill:rgba(0,0,0,.25)}.cropl.flash #cqLine{stroke:#34C759;stroke-width:3;fill:rgba(52,199,89,.12)}
 .cropl.flash{pointer-events:none}.cropl.flash .cbox{box-shadow:0 0 0 2000px rgba(0,0,0,.25);border-color:#34C759;transition:none}.cropl.flash .cbox i{display:none}
 /* page strip at the bottom of the screen (Bell 31 Oct 2026) */
 #glass .stage{padding-bottom:6px}
@@ -241,7 +246,7 @@ body{margin:0}
 #glass .menu{bottom:calc(158px + env(safe-area-inset-bottom,0px))}
 #glass .menu2{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
 /* plus menu buttons close together (Bell 1 Nov 2026) */
-#glass .menu2{justify-content:center;gap:30px;padding:0}
+#glass .menu2{justify-content:center;gap:16px;padding:0}
 #glass.menuopen .strip{visibility:hidden}
 #glass.menuopen .btnwrap{visibility:hidden}
 #glass.full .menu{bottom:124px}
@@ -347,7 +352,7 @@ body{overflow:visible}
     <div class="stage">
       <div class="lens" id="lens">
         <div class="world" id="world"><video id="cam" playsinline muted autoplay></video><img id="still" alt="" hidden draggable="false"><div class="nocam" id="nocam" hidden></div><div id="stickers"></div></div>
-        <div class="cropl" id="cropl" hidden><img id="cropImg" alt="" draggable="false"><div class="cbox" id="cbox"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+        <div class="cropl" id="cropl" hidden><img id="cropImg" alt="" draggable="false"><svg class="cq" id="cq" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path id="cqShade" fill-rule="evenodd"/><polygon id="cqLine"/></svg><i class="ch" data-k="0"></i><i class="ch" data-k="1"></i><i class="ch" data-k="2"></i><i class="ch" data-k="3"></i></div>
         <div class="dim" id="dim" hidden></div>
         <div class="pill off" id="pill"></div>
         <div class="menu" id="menu" hidden></div>
@@ -448,8 +453,13 @@ async function smartCrop(frame,words){const paper=await autoCrop(frame),area=r=>
   if(text&&area(text)<.9) return text;
   return paper}
 /* show the crop on the glass for a moment */
-function flashCrop(b){if(!b) return;const L=$('#cropl'),box=$('#cbox');$('#cropImg').removeAttribute('src');L.hidden=false;L.classList.add('flash');
-  Object.assign(box.style,{left:b.x*100+'%',top:b.y*100+'%',width:b.w*100+'%',height:b.h*100+'%'});setTimeout(()=>{if(!crop){L.hidden=true}L.classList.remove('flash')},900)}
+function drawQuad(q){const P=q.map(([x,y])=>(x*1000).toFixed(1)+','+(y*1000).toFixed(1)).join(' ');
+  $('#cqLine').setAttribute('points',P);$('#cqShade').setAttribute('d','M0 0H1000V1000H0Z M'+P.split(' ').join(' L')+'Z');
+  document.querySelectorAll('#cropl .ch').forEach((h,k)=>{h.style.left=q[k][0]*100+'%';h.style.top=q[k][1]*100+'%'})}
+const boxQuad=b=>[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]];
+/* show the book edges found for a moment, in green (Bell 1 Nov 2026: like the iOS scanner) */
+function flashCrop(b,q){if(!b&&!q) return;const L=$('#cropl');$('#cropImg').removeAttribute('src');L.hidden=false;L.classList.add('flash');
+  drawQuad(q||boxQuad(b));setTimeout(()=>{if(!crop){L.hidden=true}L.classList.remove('flash')},900)}
 function makeStickers(p,r){const cl=v=>Math.min(.92,Math.max(.08,v)),W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[];
   /* keep stickers apart so each one is easy to tap */
   const put=s=>{s.x=cl(s.x);s.y=cl(s.y);if(out.every(o=>Math.hypot((o.x-s.x)*W,(o.y-s.y)*H)>54)) out.push(s)};
@@ -557,7 +567,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='86';
+const APPV='87';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -647,14 +657,16 @@ async function edgeQuad(frame,box){try{const im=await loadImg(frame),w=160,h=Mat
   const cs=(horiz,t,p0,p1)=>{if(p1<=p0) return 0;return horiz?CY[p1*w+t]-CY[p0*w+t]:CX[t*(w+1)+p1]-CX[t*(w+1)+p0]};
   /* one side: lines from (t=0, a) to (t=1, b) across the photo; horiz = top/bottom; out = -1 (top/left) or +1 (bottom/right).
      A book edge has a clear colour change along almost all of the line (a line of text has gaps). A weaker line counts only if the area past it (to the photo edge) is plain, not book art. */
-  const side=(horiz,lo,hi,out)=>{const L=horiz?w:h,M=horiz?h:w,sk=Math.round(L*.06),sl=Math.round(M*.12);let best=null;
-    for(let a=lo;a<=hi;a++) for(let b=Math.max(lo,a-sl);b<=Math.min(hi,a+sl);b++){let hit=0,cnt=0,to=0,no=0,ti=0,ni=0;
+  const TRMAX=.03;const side=(horiz,lo,hi,out)=>{const L=horiz?w:h,M=horiz?h:w,sk=Math.round(L*.06),sl=Math.round(M*.25);let best=null;
+    for(let a=lo;a<=hi;a++) for(let b=Math.max(lo,a-sl);b<=Math.min(hi,a+sl);b++){let hit=0,cnt=0,to=0,no=0,ti=0,ni=0;let tr=0,last=null;
       for(let t=sk;t<L-sk;t+=1){const p=Math.round(a+(b-a)*t/(L-1));if(p<2||p>M-3) continue;cnt++;
-        const i=horiz?(p-2)*w+t:t*w+p-2,j=horiz?(p+2)*w+t:t*w+p+2;if(df(i,j)>22) hit++;
+        const i=horiz?(p-2)*w+t:t*w+p-2,j=horiz?(p+2)*w+t:t*w+p+2;const on=df(i,j)>22;if(on) hit++;if(on!==last){if(last!==null) tr++;last=on}
         const span=Math.max(4,Math.round(M*.15));
         if(out>0){to+=cs(horiz,t,p+3,M);no+=Math.max(0,M-p-3);ti+=cs(horiz,t,Math.max(0,p-3-span),p-3);ni+=Math.min(span,p-3)}
         else{to+=cs(horiz,t,0,p-2);no+=Math.max(0,p-2);ti+=cs(horiz,t,p+3,Math.min(M,p+3+span));ni+=Math.min(span,M-p-3)}}
       if(cnt<L*.6) continue;const sc=hit/cnt;if(sc<.6) continue;
+      /* a book edge is one long run; a line of text is broken into many short pieces (letters) */
+      if(tr>Math.max(6,cnt*TRMAX)) continue;
       const om=no?to/no:0,im=ni?ti/ni:1;if(sc<.8&&no&&om>Math.max(8,.5*im)) continue;
       if(!best||sc>best.sc) best={sc,a,b}}
     return best};
@@ -717,23 +729,56 @@ async function autoCrop(frame){try{const im=await loadImg(frame),w=120,h=Math.ma
 /* crop: drag the corners to fit the page, or drag the box to move it */
 /* crop on the glass: the photo stays still in the glass, drag the corners, tap the check */
 let crop=null;
-async function startCrop(p,frameId,onDone){const u=await blobURL(frameId);if(!u) return;closeMenu();setDel(false);setZoom(1);
-  const L=$('#cropl'),box=$('#cbox');$('#cropImg').src=u;L.hidden=false;mode='crop';renderBtn();
-  crop={b:{...(p.crop&&p.crop.w<1?p.crop:{x:.05,y:.05,w:.9,h:.9})},onDone};
-  const draw=()=>{const b=crop.b;Object.assign(box.style,{left:b.x*100+'%',top:b.y*100+'%',width:b.w*100+'%',height:b.h*100+'%'})};crop.draw=draw;draw();
-  hint('Drag the corners to the page edges.',true)}
-function endCrop(ok){if(!crop) return;const c=crop;crop=null;$('#cropl').hidden=true;if(mode==='crop') mode='idle';renderBtn();hint('');if(ok) c.onDone(c.b)}
+/* Crop = four corners, like the iOS scanner (Bell 1 Nov 2026). The original camera photo is shown; drag each corner to a corner of the book.
+   Done = the app makes a flat, straight photo from the four corners. */
+async function startCrop(p,frameId,q0,onDone){const u=await blobURL(frameId);if(!u) return;closeMenu();setDel(false);setZoom(1);
+  const L=$('#cropl'),I=$('#cropImg');I.src=u;try{await I.decode()}catch(e){}
+  /* fit the photo inside the glass without stretching (a turned photo is wider than the glass) */
+  const W=$('#world').offsetWidth,H=$('#world').offsetHeight,iw=I.naturalWidth||W,ih=I.naturalHeight||H,k=Math.min(W/iw,H/ih),w=iw*k,h=ih*k;
+  Object.assign(L.style,{inset:'auto',left:(W-w)/2+'px',top:(H-h)/2+'px',width:w+'px',height:h+'px',overflow:'visible'});L.classList.add('edit');
+  L.hidden=false;mode='crop';renderBtn();
+  crop={q:q0.map(v=>[...v]),onDone};crop.draw=()=>drawQuad(crop.q);crop.draw();
+  hint('Drag the four corners to the corners of the book.',true)}
+function endCrop(ok){if(!crop) return;const c=crop;crop=null;const L=$('#cropl');L.hidden=true;L.removeAttribute('style');L.classList.remove('edit');if(mode==='crop') mode='idle';renderBtn();hint('');if(ok) c.onDone(c.q)}
 (()=>{const L=$('#cropl');let d=null;
-  L.addEventListener('pointerdown',e=>{if(!crop) return;const h=e.target.dataset.h||(e.target.id==='cbox'?'move':null);if(!h) return;e.preventDefault();e.stopPropagation();L.setPointerCapture(e.pointerId);d={h,r:L.getBoundingClientRect(),sx:e.clientX,sy:e.clientY,b0:{...crop.b}}});
-  L.addEventListener('pointermove',e=>{if(!d||!crop) return;const dx=(e.clientX-d.sx)/d.r.width,dy=(e.clientY-d.sy)/d.r.height,o=d.b0,M=.1;let x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;
-    if(d.h==='move'){crop.b={...o,x:Math.min(1-o.w,Math.max(0,o.x+dx)),y:Math.min(1-o.h,Math.max(0,o.y+dy))};crop.draw();return}
-    if(d.h.includes('w')) x0=Math.min(x1-M,Math.max(0,o.x+dx));if(d.h.includes('e')) x1=Math.max(x0+M,Math.min(1,o.x+o.w+dx));
-    if(d.h.includes('n')) y0=Math.min(y1-M,Math.max(0,o.y+dy));if(d.h.includes('s')) y1=Math.max(y0+M,Math.min(1,o.y+o.h+dy));
-    crop.b={x:x0,y:y0,w:x1-x0,h:y1-y0};crop.draw()});
+  L.addEventListener('pointerdown',e=>{if(!crop) return;const r=L.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+    let k=e.target.dataset.k!=null?+e.target.dataset.k:-1;
+    /* a touch near a corner also picks it up */
+    if(k<0){let bd=1e9;crop.q.forEach(([qx,qy],i)=>{const dd=Math.hypot((qx-x)*r.width,(qy-y)*r.height);if(dd<bd){bd=dd;k=i}});if(bd>60) k=-1}
+    if(k<0) return;e.preventDefault();e.stopPropagation();L.setPointerCapture(e.pointerId);d={k,r,sx:e.clientX,sy:e.clientY,q0:[...crop.q[k]]}});
+  L.addEventListener('pointermove',e=>{if(!d||!crop) return;const x=Math.min(1,Math.max(0,d.q0[0]+(e.clientX-d.sx)/d.r.width)),y=Math.min(1,Math.max(0,d.q0[1]+(e.clientY-d.sy)/d.r.height));
+    const q=crop.q.map(v=>[...v]);q[d.k]=[x,y];if(convexQ(q)){crop.q=q;crop.draw()}});
   ['pointerup','pointercancel'].forEach(ev=>L.addEventListener(ev,()=>d=null));})();
+function convexQ(q){let sg=0;for(let k=0;k<4;k++){const [x0,y0]=q[k],[x1,y1]=q[(k+1)%4],[x2,y2]=q[(k+2)%4],c=(x1-x0)*(y2-y1)-(y1-y0)*(x2-x1);if(Math.abs(c)<1e-5) return false;const t=Math.sign(c);if(sg&&t!==sg) return false;sg=t}return true}
+/* 3x3 homography helpers: unit square -> quad, and back */
+function hMat(Q){const [a,b,c,d,e,f,g,h]=sqToQuad(Q);return [a,b,c,d,e,f,g,h,1]}
+function hInv(m){const [a,b,c,d,e,f,g,h,i]=m,A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g,det=a*A+b*B+c*C;
+  return [A/det,-(b*i-c*h)/det,(b*f-c*e)/det,B/det,(a*i-c*g)/det,-(a*f-c*d)/det,C/det,-(a*h-b*g)/det,(a*e-b*d)/det]}
+function hApply(m,x,y){const z=m[6]*x+m[7]*y+m[8];return [(m[0]*x+m[1]*y+m[2])/z,(m[3]*x+m[4]*y+m[5])/z]}
+/* Rotate = turn the page photo a quarter turn to the right (Bell 1 Nov 2026). Stickers turn with it. */
+async function rotImg(src){const im=await loadImg(src),c=document.createElement('canvas');c.width=im.naturalHeight;c.height=im.naturalWidth;const g=c.getContext('2d');
+  g.translate(c.width,0);g.rotate(Math.PI/2);g.drawImage(im,0,0);if(typeof src!=='string') URL.revokeObjectURL(im.src);return c.toDataURL('image/jpeg',.9)}
+async function rotatePage(pi){const p=book().pages[pi];if(!p.frame){toast('Make stickers on this page first.');return}
+  const f=await blobGet(p.frame);if(!f) return;const nf=await rotImg(f),R=([x,y])=>[1-y,x];
+  [...p.stickers,...p.own].forEach(o=>{[o.x,o.y]=R([o.x,o.y])});
+  if(p.orig&&p.quad){const of=await blobGet(p.orig);if(of){try{await blobPut(p.orig,await rotImg(of));urls.delete(p.orig)}catch(e){}p.quad=[3,0,1,2].map(k=>R(p.quad[k]))}}
+  else if(p.orig){const of=await blobGet(p.orig);if(of){try{await blobPut(p.orig,await rotImg(of));urls.delete(p.orig)}catch(e){}}}
+  const c=p.crop||{x:0,y:0,w:1,h:1},nc={x:1-c.y-c.h,y:c.x,w:c.h,h:c.w};
+  try{await blobPut(p.frame,nf);urls.delete(p.frame)}catch(e){}
+  await savePhoto(book(),p,nf,nc);save();forget(p);await showStill();drawStickers(true)}
 async function recrop(pi){const p=book().pages[pi];if(!p.frame){toast('Make stickers on this page first.');return}
   if(S.page!==pi){S.page=pi;save();await renderStrip();renderPage()}
-  startCrop(p,p.frame,async r=>{const f=await blobGet(p.frame);if(f) await savePhoto(book(),p,f,r);forget(p);await showStill()})}
+  /* the original camera photo, if kept; older pages only have the page photo */
+  const src=p.orig||p.frame,q0=p.quad?p.quad:boxQuad(p.crop&&p.crop.w<1?p.crop:{x:.04,y:.04,w:.92,h:.92});
+  startCrop(p,src,q0,async q=>{const raw=await blobGet(src);if(!raw) return;
+    const oldM=p.quad?hMat(p.quad):null;
+    let flat;try{flat=await straighten(raw,q,false)}catch(e){toast('Could not straighten the photo.');return}
+    if(!p.orig){p.orig='o'+p.id;try{await blobPut(p.orig,raw)}catch(e){}}
+    /* move the stickers to the same place on the book in the new photo */
+    const inv=hInv(hMat(q));[...p.stickers,...p.own].forEach(o=>{const s0=oldM?hApply(oldM,o.x,o.y):[o.x,o.y],n=hApply(inv,s0[0],s0[1]);
+      if(isFinite(n[0])&&isFinite(n[1])){o.x=Math.min(.96,Math.max(.04,n[0]));o.y=Math.min(.96,Math.max(.04,n[1]))}});
+    p.quad=q;try{await blobPut(p.frame,flat);urls.delete(p.frame)}catch(e){}
+    await savePhoto(book(),p,flat,{x:0,y:0,w:1,h:1});save();forget(p);await showStill();drawStickers(true)})}
 /* ================= glass ================= */
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
@@ -930,10 +975,12 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   let frame=await grabFrame();setTimeout(ringOff,250);
   if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
   /* 1. save the photo at once, cropped to the paper */
-  let box=await autoCrop(frame);flashCrop(box);
+  let box=await autoCrop(frame);const raw0=frame;
   /* book held at an angle: make it a flat, straight rectangle; the whole new photo is the book */
   const real=!!(box&&box.q);if(!real){const eq=await edgeQuad(frame,box);if(eq){box=box||{x:0,y:0,w:1,h:1};box.q=eq}}
-  let flat=false;if(box&&box.q){try{const st=await straighten(frame,box.q,real);if(st){frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
+  flashCrop(box,box&&box.q);let flat=false,usedQ=null;if(box&&box.q){try{const st=await straighten(frame,box.q,real);if(st){usedQ=box.q;frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
+  /* keep the camera photo and the corners, so Crop can fix them later */
+  p.orig='o'+p.id;try{await blobPut(p.orig,raw0);urls.delete(p.orig)}catch(e){}p.quad=usedQ;
   if(box) delete box.q;
   p.frame='f'+p.id;try{await blobPut(p.frame,frame);urls.delete(p.frame)}catch(e){}
   try{await savePhoto(b,p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}
@@ -966,14 +1013,15 @@ btn.addEventListener('click',e=>{e.stopPropagation();if(mode==='crop'){endCrop(t
   if(mode.startsWith('place')){mode='idle';renderBtn();hint('');return}if(page().scanned) openMenu()});
 function openMenu(){mode='menu';$('#dim').hidden=false;
   $('#menu').innerHTML=`<button class="mi" data-m="voice"><span class="st">${stickerHTML('voice')}</span><span>Voice</span></button><button class="mi" data-m="q"><span class="st">${stickerHTML('q')}</span><span>Question</span></button>`;
-  $('#menu2').innerHTML=`<button class="mini" data-m="crop"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2.5v13.5a1.5 1.5 0 0 0 1.5 1.5h13.5M2.5 6.5H16a1.5 1.5 0 0 1 1.5 1.5v13.5"/></svg></b><span>Crop</span></button><button class="mini" data-m="regen"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2-4.9M19 4v4h-4"/></svg></b><span>Regenerate</span></button><button class="mini" data-m="del"><b><svg viewBox="0 0 24 24" fill="none" stroke="#D7372F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg></b><span>Delete</span></button>`;
+  $('#menu2').innerHTML=`<button class="mini" data-m="crop"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2.5v13.5a1.5 1.5 0 0 0 1.5 1.5h13.5M2.5 6.5H16a1.5 1.5 0 0 1 1.5 1.5v13.5"/></svg></b><span>Crop</span></button><button class="mini" data-m="rot"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9.5" width="11" height="11" rx="1.5"/><path d="M10 4.5h3.5a5 5 0 0 1 5 5v3.5"/><path d="M16 10.5l2.5 2.5 2.5-2.5"/></svg></b><span>Rotate</span></button><button class="mini" data-m="regen"><b><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2-4.9M19 4v4h-4"/></svg></b><span>Regenerate</span></button><button class="mini" data-m="del"><b><svg viewBox="0 0 24 24" fill="none" stroke="#D7372F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/></svg></b><span>Delete</span></button>`;
   $('#menu').hidden=false;$('#menu2').hidden=false;$('#glass').classList.add('menuopen');renderBtn()}
 function closeMenu(){if(mode==='menu') mode='idle';$('#dim').hidden=true;$('#menu').hidden=true;$('#menu2').hidden=true;$('#glass').classList.remove('menuopen');renderBtn()}
 document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m) return;const k=m.dataset.m;closeMenu();
   if(k==='voice'||k==='q'){mode='place:'+k;renderBtn();hint('Tap the page to put it there.',true)}
   if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;$('#still').hidden=true;layoutStill();delete shown[key()];save();drawStickers(false);renderBtn();renderStrip();hint('Your own stickers stay. Hold the magnifier to scan again.')}
   if(k==='del') setDel(true);
-  if(k==='crop') recrop(S.page)});
+  if(k==='crop') recrop(S.page);
+  if(k==='rot') rotatePage(S.page)});
 function setDel(on){mode=on?'delete':(mode==='delete'?'idle':mode);$('#stickers').classList.toggle('delmode',on);renderBtn();if(on) hint('Tap a sticker to remove it. Tap the button to finish.',true);else hint('')}
 $('#lens').addEventListener('click',e=>{
   if(e.target.closest('.nfly')) return;

@@ -554,7 +554,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='79';
+const APPV='80';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -594,22 +594,63 @@ function bgCrop(d,w,h){const n=w*h,R=new Float32Array(n),G=new Float32Array(n),B
   const F=new Uint8Array(n);for(let i=0;i<n;i++) F[i]=near(i)[0]>T?1:0;
   /* join the parts of the book, then keep the largest one */
   const Q=new Uint8Array(n);for(let y=0;y<h;y++) for(let x=0;x<w;x++){let on=0;for(let dy=-2;dy<=2&&!on;dy++) for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<w&&yy<h&&F[yy*w+xx]){on=1;break}}Q[y*w+x]=on}
-  const seen=new Uint8Array(n),parts=[];
-  for(let s=0;s<n;s++){if(!Q[s]||seen[s]) continue;const q=[s];seen[s]=1;let cnt=0,x0=w,y0=h,x1=0,y1=0;
+  const seen=new Int32Array(n),parts=[];
+  for(let s=0;s<n;s++){if(!Q[s]||seen[s]) continue;const id=parts.length+1,q=[s];seen[s]=id;let cnt=0,x0=w,y0=h,x1=0,y1=0;
     while(q.length){const i=q.pop(),x=i%w,y=(i/w)|0;cnt++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
-      for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||seen[j]||!Q[j]) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;seen[j]=1;q.push(j)}}
-    parts.push({cnt,x0,y0,x1,y1})}
+      for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||seen[j]||!Q[j]) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;seen[j]=id;q.push(j)}}
+    parts.push({id,cnt,x0,y0,x1,y1})}
   if(!parts.length) return null;parts.sort((a,b)=>b.cnt-a.cnt);
   /* the largest part, plus other big parts that do not touch the edge of the photo (light areas of a cover can split it) */
-  const top={...parts[0]};for(const q of parts.slice(1)){if(q.cnt<.015*n||q.x0<=1||q.y0<=1||q.x1>=w-2||q.y1>=h-2) continue;
-    top.x0=Math.min(top.x0,q.x0);top.y0=Math.min(top.y0,q.y0);top.x1=Math.max(top.x1,q.x1);top.y1=Math.max(top.y1,q.y1)}
+  const top={...parts[0]},ids=new Set([parts[0].id]);for(const q of parts.slice(1)){if(q.cnt<.015*n||q.x0<=1||q.y0<=1||q.x1>=w-2||q.y1>=h-2) continue;
+    ids.add(q.id);top.x0=Math.min(top.x0,q.x0);top.y0=Math.min(top.y0,q.y0);top.x1=Math.max(top.x1,q.x1);top.y1=Math.max(top.y1,q.y1)}
   const bx=Math.max(0,(top.x0+2)/w),by=Math.max(0,(top.y0+2)/h),bw=Math.min(1,(top.x1-1)/w)-bx,bh=Math.min(1,(top.y1-1)/h)-by;
   if(bw*bh<.06||bw*bh>.92) return null;
   /* a book looks different almost everywhere; lines of text on a page that fills the photo do not */
   let fg=0;for(let y=top.y0;y<=top.y1;y++) for(let x=top.x0;x<=top.x1;x++) fg+=F[y*w+x];
   const fill=fg/((top.x1-top.x0+1)*(top.y1-top.y0+1)),flat=ev[Math.floor(ev.length*.9)]<14;
   if(fill<.15||(flat&&fill<.4)) return null;
-  return {x:bx,y:by,w:bw,h:bh}}
+  /* corners only when the whole book is in the photo (no side cut off by the edge) */
+  const inside=top.x0>2&&top.y0>2&&top.x1<w-3&&top.y1<h-3;
+  return {x:bx,y:by,w:bw,h:bh,q:inside?bookQuad(F,seen,ids,w,h):null}}
+/* the four corners of the book (Bell 1 Nov 2026: straighten a book held at an angle).
+   Corners = the book points furthest toward each corner of the photo. Kept only when the book looks like a clean four-sided shape. */
+function bookQuad(F,lab,ids,w,h){let c=[null,null,null,null],v=[1e9,-1e9,-1e9,1e9],cnt=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){const i=y*w+x;if(!F[i]||!ids.has(lab[i])) continue;cnt++;
+    const a=x+y,b=x-y;if(a<v[0]){v[0]=a;c[0]=[x,y]}if(b>v[1]){v[1]=b;c[1]=[x,y]}if(a>v[2]){v[2]=a;c[2]=[x,y]}if(b<v[3]){v[3]=b;c[3]=[x,y]}}
+  if(!c[0]) return null;
+  /* pixel centres, then normalized 0..1 (order: top left, top right, bottom right, bottom left) */
+  const P=c.map(([x,y],k)=>[(x+(k===1||k===2?1:0))/w,(y+(k>=2?1:0))/h]);
+  /* area of the four-sided shape; the book must fill most of it, and it must not be a thin sliver */
+  let ar=0,cv=0;for(let k=0;k<4;k++){const [x0,y0]=P[k],[x1,y1]=P[(k+1)%4],[x2,y2]=P[(k+2)%4];ar+=x0*y1-x1*y0;if((x1-x0)*(y2-y1)-(y1-y0)*(x2-x1)>0) cv++}
+  ar=Math.abs(ar)/2;if(cv!==4||ar<.06) return null;
+  if(cnt/(w*h)/ar<.82) return null;
+  const L=(a,b)=>Math.hypot((P[a][0]-P[b][0])*w,(P[a][1]-P[b][1])*h);
+  if(Math.min(L(0,1),L(1,2),L(2,3),L(3,0))<w*.15) return null;
+  return P}
+/* homography that sends the unit square (u,v) to the quad P */
+function sqToQuad(P){const [[x0,y0],[x1,y1],[x2,y2],[x3,y3]]=P,dx1=x1-x2,dx2=x3-x2,dy1=y1-y2,dy2=y3-y2,sx=x0-x1+x2-x3,sy=y0-y1+y2-y3,d=dx1*dy2-dx2*dy1;
+  const g=(sx*dy2-dx2*sy)/d,hh=(dx1*sy-sx*dy1)/d;
+  return [x1-x0+g*x1,x3-x0+hh*x3,x0,y1-y0+g*y1,y3-y0+hh*y3,y0,g,hh]}
+/* real width/height of the book, from the four corners and a pinhole camera (Zhang and He, whiteboard scanning).
+   The camera focal length comes from the corners; if that fails, a normal phone camera is used. */
+function trueAspect(Q,W,H){const m1=[...Q[0],1],m2=[...Q[1],1],m4=[...Q[2],1],m3=[...Q[3],1],u0=W/2,v0=H/2;
+  const X=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],Dt=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],c14=X(m1,m4);
+  const k2=Dt(c14,m3)/Dt(X(m2,m4),m3),k3=Dt(c14,m2)/Dt(X(m3,m4),m2);if(!isFinite(k2)||!isFinite(k3)) return null;
+  const n2=m2.map((v,i)=>k2*v-m1[i]),n3=m3.map((v,i)=>k3*v-m1[i]);
+  let f2=-((n2[0]*n3[0]-(n2[0]*n3[2]+n2[2]*n3[0])*u0+n2[2]*n3[2]*u0*u0)+(n2[1]*n3[1]-(n2[1]*n3[2]+n2[2]*n3[1])*v0+n2[2]*n3[2]*v0*v0))/(n2[2]*n3[2]);
+  const L=Math.max(W,H);if(!(f2>(.4*L)**2&&f2<(3*L)**2)) f2=(.8*L)**2;
+  const q=n=>{const x=n[0]-u0*n[2],y=n[1]-v0*n[2];return (x*x+y*y)/f2+n[2]*n[2]};
+  const r=Math.sqrt(q(n2)/q(n3));return r>.25&&r<4?r:null}
+/* flat, straight photo of the book: map every output pixel back into the camera photo */
+async function straighten(frame,P){const im=await loadImg(frame),W=im.naturalWidth,H=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.drawImage(im,0,0);if(typeof frame!=='string') URL.revokeObjectURL(im.src);
+  const sd=g.getImageData(0,0,W,H).data,Q=P.map(([x,y])=>[x*W,y*H]),D=(a,b)=>Math.hypot(Q[a][0]-Q[b][0],Q[a][1]-Q[b][1]);
+  let ow=(D(0,1)+D(3,2))/2,oh=(D(0,3)+D(1,2))/2;const ar=trueAspect(Q,W,H);if(ar) oh=ow/ar;const m=Math.min(1,1200/Math.max(ow,oh));ow=Math.max(8,Math.round(ow*m));oh=Math.max(8,Math.round(oh*m));
+  const [a,b,cc,d,e,f,gg,hh]=sqToQuad(Q),o=document.createElement('canvas');o.width=ow;o.height=oh;const og=o.getContext('2d'),od=og.createImageData(ow,oh),dd=od.data;
+  const ei=.012;for(let y=0;y<oh;y++){const v=ei+(1-2*ei)*(y+.5)/oh;for(let x=0;x<ow;x++){const u=ei+(1-2*ei)*(x+.5)/ow,z=gg*u+hh*v+1,sx=(a*u+b*v+cc)/z-.5,sy=(d*u+e*v+f)/z-.5;
+    const X=Math.max(0,Math.min(W-2,Math.floor(sx))),Y=Math.max(0,Math.min(H-2,Math.floor(sy))),fx=Math.max(0,Math.min(1,sx-X)),fy=Math.max(0,Math.min(1,sy-Y)),i=(Y*W+X)*4,j=(y*ow+x)*4;
+    for(let k=0;k<3;k++) dd[j+k]=(sd[i+k]*(1-fx)+sd[i+4+k]*fx)*(1-fy)+(sd[i+W*4+k]*(1-fx)+sd[i+W*4+4+k]*fx)*fy;dd[j+3]=255}}
+  og.putImageData(od,0,0);return o.toDataURL('image/jpeg',.85)}
 async function autoCrop(frame){try{const im=await loadImg(frame),w=120,h=Math.max(1,Math.round(w*im.naturalHeight/im.naturalWidth)),c=document.createElement('canvas');c.width=w;c.height=h;
   const g=c.getContext('2d');g.drawImage(im,0,0,w,h);URL.revokeObjectURL(im.src);const d=g.getImageData(0,0,w,h).data,n=w*h,L=new Uint8Array(n),hist=new Array(256).fill(0);
   const bk=bgCrop(d,w,h);if(bk) return bk;
@@ -842,11 +883,14 @@ async function readSafe(frame){try{return await within(readWords(frame),ocrReady
   catch(e){if(e.message==='timeout'){try{(await ocr).terminate()}catch(_){}ocr=null;ocrReady=false}throw e}}
 async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   if(busy){ringOff();hint('Still reading the last page. One moment.');return}
-  const frame=await grabFrame();setTimeout(ringOff,250);
+  let frame=await grabFrame();setTimeout(ringOff,250);
   if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
   /* 1. save the photo at once, cropped to the paper */
-  p.frame='f'+p.id;try{await blobPut(p.frame,frame);urls.delete(p.frame)}catch(e){}
   let box=await autoCrop(frame);flashCrop(box);
+  /* book held at an angle: make it a flat, straight rectangle; the whole new photo is the book */
+  let flat=false;if(box&&box.q){try{const st=await straighten(frame,box.q);if(st){frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
+  if(box) delete box.q;
+  p.frame='f'+p.id;try{await blobPut(p.frame,frame);urls.delete(p.frame)}catch(e){}
   try{await savePhoto(b,p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}
   if(was){shown[key()]=true;save();drawStickers(true);renderBtn();renderStrip();hint('Stickers are back. Tap one to open it.');return}
   /* 2. read the words, then make the crop better and make stickers */
@@ -854,7 +898,7 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   try{words=await readSafe(frame);ocrReady=true}catch(e){err=e}
   busy=false;$('#btn').classList.remove('busy');
   if(err){hint(err.message==='timeout'?'Reading took too long. Hold again.':'Could not read ('+(err.message||'the reader did not load')+'). Hold again.');return}
-  const better=await smartCrop(frame,words);if(JSON.stringify(better)!==JSON.stringify(box)){box=better;try{await savePhoto(b,p,frame,box)}catch(e){}}
+  const better=flat?box:await smartCrop(frame,words);if(JSON.stringify(better)!==JSON.stringify(box)){box=better;try{await savePhoto(b,p,frame,box)}catch(e){}}
   const r=pickStickers(words,box);
   if(b!==book()||p!==page()) return;
   /* own stickers kept from before: move them onto the new photo */

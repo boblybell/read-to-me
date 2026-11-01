@@ -445,7 +445,7 @@ function pickStickers(words,box){const b=box||{x:0,y:0,w:1,h:1};
   const facts=list.filter(x=>FACTS[x.l]&&!seen.has(x.l)&&seen.add(x.l)).slice(0,2);
   const vocab=list.filter(x=>x.l.length>=4&&!STOP.has(x.l)&&!FACTS[x.l]&&!seen.has(x.l)&&seen.add(x.l)).sort((a,b)=>b.l.length-a.l.length).slice(0,6);
   const first=list.reduce((a,b)=>b.y<a.y-.02||(Math.abs(a.y-b.y)<=.02&&b.x<a.x)?b:a);
-  return {text,first,facts,vocab}}
+  return {text,first,facts,vocab,all:words,box:b}}
 /* auto crop = the paper, helped by where the words are.
    If the paper fills (almost) the whole view, or two pages are open, crop around the text block instead. */
 async function smartCrop(frame,words){const paper=await autoCrop(frame),area=r=>r?r.w*r.h:0;
@@ -464,12 +464,23 @@ const boxQuad=b=>[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]];
 /* show the book edges found for a moment, in green (Bell 1 Nov 2026: like the iOS scanner) */
 function flashCrop(b,q){if(!b&&!q) return;const L=$('#cropl');$('#cropImg').removeAttribute('src');L.hidden=false;L.classList.add('flash');
   drawQuad(q||boxQuad(b));setTimeout(()=>{if(!crop){L.hidden=true}L.classList.remove('flash')},900)}
-function makeStickers(p,r){const cl=v=>Math.min(.92,Math.max(.08,v)),W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[];
-  /* keep stickers apart so each one is easy to tap */
-  const put=s=>{s.x=cl(s.x);s.y=cl(s.y);if(out.every(o=>Math.hypot((o.x-s.x)*W,(o.y-s.y)*H)>54)) out.push(s)};
-  put({id:uid(),type:'play',x:r.first.x-.14,y:r.first.y,open:false});
-  r.facts.forEach(x=>put({id:uid(),type:'fact',x:x.x,y:x.y,word:x.l,fact:FACTS[x.l],open:false}));
-  r.vocab.forEach(x=>put({id:uid(),type:'word',x:x.x,y:x.y,word:x.l,open:false}));
+function makeStickers(p,r){const W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[],b=r.box||{x:0,y:0,w:1,h:1};
+  /* stickers sit NEXT TO the words, never on them (Bell 1 Nov 2026).
+     Sticker size in photo units: the page photo is shown zoomed to fit its crop. */
+  const z=Math.min(W/(b.w*W),(H*.62)/(b.h*H)),rx=30/(W*z),ry=30/(H*z),mx=4/(W*z),my=4/(H*z);
+  const words=(r.all||[]).filter(w=>w.x1>w.x0&&w.y1>w.y0);
+  const inX=x=>x>=Math.max(b.x,0)+rx&&x<=Math.min(b.x+b.w,1)-rx,inY=y=>y>=Math.max(b.y,0)+ry&&y<=Math.min(b.y+b.h,1)-ry;
+  const free=(x,y)=>inX(x)&&inY(y)&&words.every(w=>x+rx+mx<w.x0||x-rx-mx>w.x1||y+ry+my<w.y0||y-ry-my>w.y1)&&out.every(o=>Math.abs(o.x-x)>2*rx+mx||Math.abs(o.y-y)>2*ry+my);
+  /* try spots around the word, nearest first; pref = small extra cost for the less wanted sides */
+  const spot=(w,pref)=>{const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2,c=[];
+    for(let k=0;k<10;k++){const d=k*rx;
+      c.push([w.x0-rx-mx-d,cy,pref.left],[w.x1+rx+mx+d,cy,pref.right]);
+      for(const dx of [0,-d,d]){c.push([cx+dx,w.y0-ry-my-k*ry*.6,pref.up],[cx+dx,w.y1+ry+my+k*ry*.6,pref.down])}}
+    let best=null,bd=1e9;for(const [x,y,pf] of c){if(!free(x,y)) continue;const dd=Math.hypot((x-cx)*W,(y-cy)*H)*z+pf;if(dd<bd){bd=dd;best=[x,y]}}return best};
+  const put=(s,w,pref)=>{const q=spot(w,pref);if(q){s.x=q[0];s.y=q[1];out.push(s)}};
+  put({id:uid(),type:'play',open:false},r.first,{left:0,up:30,right:200,down:200});
+  r.facts.forEach(x=>put({id:uid(),type:'fact',word:x.l,fact:FACTS[x.l],open:false},x,{up:0,right:10,left:10,down:20}));
+  r.vocab.forEach(x=>put({id:uid(),type:'word',word:x.l,open:false},x,{up:0,right:10,left:10,down:20}));
   p.text=r.text;p.scanned=true;p.stickers=out}
 let S=null;
 const shown={};
@@ -571,7 +582,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='94';
+const APPV='95';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

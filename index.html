@@ -315,7 +315,7 @@ body{overflow:visible}
   <rect width="390" height="844" fill="#4a2508" opacity=".14"/>
 </svg>
     <header class="ltop"><h1 id="libTitle">My Library</h1>
-      <button class="acct" id="acctBtn" aria-label="Account"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 1.5a10.5 10.5 0 1 1 0 21 10.5 10.5 0 0 1 0-21zm0 4.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4zm0 9c-2.9 0-5.4 1.4-6.6 3.4a8.6 8.6 0 0 0 13.2 0c-1.2-2-3.7-3.4-6.6-3.4z"/></svg></button>
+      <button class="acct" id="acctBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20.20 12.00 L20.07 13.47 L22.15 14.69 L21.08 17.27 L18.75 16.66 L17.80 17.80 L16.66 18.75 L17.27 21.08 L14.69 22.15 L13.47 20.07 L12.00 20.20 L10.53 20.07 L9.31 22.15 L6.73 21.08 L7.34 18.75 L6.20 17.80 L5.25 16.66 L2.92 17.27 L1.85 14.69 L3.93 13.47 L3.80 12.00 L3.93 10.53 L1.85 9.31 L2.92 6.73 L5.25 7.34 L6.20 6.20 L7.34 5.25 L6.73 2.92 L9.31 1.85 L10.53 3.93 L12.00 3.80 L13.47 3.93 L14.69 1.85 L17.27 2.92 L16.66 5.25 L17.80 6.20 L18.75 7.34 L21.08 6.73 L22.15 9.31 L20.07 10.53Z M15.4 12 A3.4 3.4 0 1 0 8.6 12 A3.4 3.4 0 1 0 15.4 12Z"/></svg></button>
     </header>
     <div id="shelves"></div>
   </section>
@@ -539,7 +539,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='74';
+const APPV='75';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}

@@ -29,6 +29,9 @@ Then in Xcode (`npx cap open ios`):
 
 1. Add the two Swift files to the App target (drag them into the App group, tick "App").
 2. Main.storyboard: select the Bridge View Controller, set Custom Class to `MainViewController`, module `App`.
+   - Newer Capacitor also makes `SceneDelegate.swift`, which starts the app WITHOUT the storyboard.
+     If that file exists, change `CAPBridgeViewController()` in it to `MainViewController()`.
+     Otherwise DocScan is never added (Settings then says "Apple finder NOT found").
 3. Info.plist: add
    - `NSCameraUsageDescription` = "ReadToMe uses the camera to see the book page."
    - `NSMicrophoneUsageDescription` = "ReadToMe records family voices for the stickers."

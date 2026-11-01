@@ -241,6 +241,7 @@ body{margin:0}
 #glass .menu{bottom:calc(206px + env(safe-area-inset-bottom,0px))}
 #glass .menu2{bottom:calc(36px + env(safe-area-inset-bottom,0px))}
 #glass.menuopen .strip{visibility:hidden}
+#glass.menuopen .btnwrap{visibility:hidden}
 #glass.full .menu{bottom:130px}
 #glass.full .menu2{bottom:36px}
 #glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
@@ -554,7 +555,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='83';
+const APPV='84';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -959,7 +960,7 @@ const btn=$('#btn');
 btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!page().scanned){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>{if(hold){cancelHold();hint('Keep holding until the ring is full.')}}));
 btn.addEventListener('contextmenu',e=>e.preventDefault());
-btn.addEventListener('click',()=>{if(mode==='crop'){endCrop(true);return}if(mode==='menu'){closeMenu();return}if(mode==='delete'){setDel(false);return}
+btn.addEventListener('click',e=>{e.stopPropagation();if(mode==='crop'){endCrop(true);return}if(mode==='menu'){closeMenu();return}if(mode==='delete'){setDel(false);return}
   if(mode.startsWith('place')){mode='idle';renderBtn();hint('');return}if(page().scanned) openMenu()});
 function openMenu(){mode='menu';$('#dim').hidden=false;
   $('#menu').innerHTML=`<button class="mi" data-m="voice"><span class="st">${stickerHTML('voice')}</span><span>Voice</span></button><button class="mi" data-m="q"><span class="st">${stickerHTML('q')}</span><span>Question</span></button>`;
@@ -974,7 +975,10 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m
 function setDel(on){mode=on?'delete':(mode==='delete'?'idle':mode);$('#stickers').classList.toggle('delmode',on);renderBtn();if(on) hint('Tap a sticker to remove it. Tap the button to finish.',true);else hint('')}
 $('#lens').addEventListener('click',e=>{
   if(e.target.closest('.nfly')) return;
-  if(e.target.closest('.btnwrap,.menu,.menu2')) return;const st=e.target.closest('.st');
+  if(e.target.closest('.btnwrap')) return;
+  /* menu open: tap any empty place to close it (Bell 1 Nov 2026: no X button) */
+  if(mode==='menu'){if(!e.target.closest('.mi,.mini')) closeMenu();return}
+  if(e.target.closest('.menu,.menu2')) return;const st=e.target.closest('.st');
   if(mode==='delete'&&st){const id=st.dataset.id,p=page();const o=p.own.find(s=>s.id===id);if(o) [o.audio,o.qAudio,o.aAudio].filter(Boolean).forEach(x=>blobDel(x).catch(()=>{}));
     p.stickers=p.stickers.filter(s=>s.id!==id);p.own=p.own.filter(s=>s.id!==id);save();st.remove();renderStrip();return}
   if(mode.startsWith('place')){const r=$('#world').getBoundingClientRect();const q=toPage(page(),(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);

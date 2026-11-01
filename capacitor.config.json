@@ -1,0 +1,6 @@
+{
+  "appId": "com.boblybell.readtome",
+  "appName": "ReadToMe",
+  "webDir": "www",
+  "ios": { "contentInset": "never", "allowsLinkPreview": false }
+}

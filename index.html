@@ -571,7 +571,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='90';
+const APPV='91';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -585,19 +585,27 @@ async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInlin
 /* live edges (Bell 1 Nov 2026: must feel as quick as the iOS scanner).
    About 12 times a second: look for the book in a small camera picture (fast colour method; the slower edge-line method only every 4th time).
    The outline glides to the new place on every screen frame, so it follows the book without delay. */
-let liveT=null,liveQ=null,liveMiss=0,liveN=0;
+let liveT=null,liveQ=null,liveMiss=0,liveN=0,liveSince=0,liveBusy=false;
+/* native iPhone app (Bell 1 Nov 2026, option 2): Apple's own document finder (Vision), called from our glass */
+const nativeScan=()=>{try{return window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.DocScan||null}catch(e){return null}};
+async function nativeQuad(img){const P=nativeScan();if(!P) return null;try{const r=await P.detect({image:img});return r&&r.found&&r.confidence>.4&&r.quad&&r.quad.length===4?r.quad:null}catch(e){return null}}
+/* a new result: move the target, and note how long the box has stayed in the same place */
+function liveApply(q){if(q&&q.every(([x,y])=>x<=.005||x>=.995)&&q.every(([x,y])=>y<=.005||y>=.995)) q=null;
+  if(!q){if(++liveMiss>2){liveT=null;liveSince=0}return}liveMiss=0;
+  const moved=!liveT||Math.max(...q.map((p,i)=>Math.hypot(p[0]-liveT[i][0],p[1]-liveT[i][1])))>.025;if(moved) liveSince=performance.now();liveT=q}
+const liveSteady=()=>!!liveT&&liveSince>0&&performance.now()-liveSince>350;
 function liveEdges(){const el=$('#liveq'),v=$('#cam');
   const show=!$('#glass').hidden&&stream&&v.videoWidth&&!stillOn()&&!busy&&!crop&&(mode==='idle')&&book()&&!page().scanned;
-  if(!show){liveT=null;return}
+  if(!show){liveT=null;liveSince=0;return}
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,w=96,h=Math.max(1,Math.round(w*sh/sw));
   const c=liveEdges.c||(liveEdges.c=document.createElement('canvas'));if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d',{willReadFrequently:true});
+  if(nativeScan()){if(liveBusy) return;liveBusy=true;const c3=liveEdges.c3||(liveEdges.c3=document.createElement('canvas')),w3=240,h3=Math.max(1,Math.round(w3*sh/sw));if(c3.width!==w3||c3.height!==h3){c3.width=w3;c3.height=h3}
+    c3.getContext('2d').drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w3,h3);nativeQuad(c3.toDataURL('image/jpeg',.7)).then(q=>{liveBusy=false;liveApply(q)});return}
   g.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);const d=g.getImageData(0,0,w,h).data;
   let q=null;try{const bk=bgCrop(d,w,h);q=bk&&bk.q}catch(e){}
   let tried=!!q;if(!q&&(++liveN%4===0||!liveT)){tried=true;try{const w2=64,h2=Math.max(1,Math.round(w2*sh/sw)),c2=liveEdges.c2||(liveEdges.c2=document.createElement('canvas'));c2.width=w2;c2.height=h2;
     const g2=c2.getContext('2d',{willReadFrequently:true});g2.drawImage(c,0,0,w2,h2);q=edgeQuadData(g2.getImageData(0,0,w2,h2).data,w2,h2,null)}catch(e){}}
-  if(!tried) return;
-  if(q&&q.every(([x,y])=>x<=.005||x>=.995)&&q.every(([x,y])=>y<=.005||y>=.995)) q=null;
-  if(!q){if(++liveMiss>2) liveT=null;return}liveMiss=0;liveT=q}
+  if(!tried) return;liveApply(q)}
 (function liveLoop(){const t=performance.now();try{liveEdges()}catch(e){}setTimeout(liveLoop,Math.max(70,(performance.now()-t)*1.5))})();
 (function liveDraw(){const el=$('#liveq');
   if(!liveT){if(!el.hasAttribute('hidden')) el.setAttribute('hidden','');liveQ=null}
@@ -719,6 +727,47 @@ function edgeQuadData(d,w,h,box){try{const n=w*h,R=new Float32Array(n),G=new Flo
   for(let k=0;k<4;k++){const p=cl[k],a1=cl[(k+3)%4],a2=cl[(k+1)%4],u=[(a1[0]-p[0])*w,(a1[1]-p[1])*h],v=[(a2[0]-p[0])*w,(a2[1]-p[1])*h];
     const cs=(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v)||1);if(Math.abs(cs)>Math.cos(65*Math.PI/180)) return null}
   return cl}catch(e){return null}}
+/* book finder like a document scanner (Bell 1 Nov 2026: real rooms are busy).
+   1. find strong straight lines in a small grey picture (edges + line voting);
+   2. try every pair of top/bottom lines with every pair of left/right lines;
+   3. keep the four-sided shape whose sides lie on real edges along their whole length, close to square corners.
+   The photo border counts as a weak side, for a book that does not fit in the photo. Returns 4 corners (0..1) or null. */
+function scanQuad(d,w,h){const n=w*h,Y=new Float32Array(n);
+  for(let i=0;i<n;i++) Y[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;
+  const B=new Float32Array(n);for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){const i=y*w+x;B[i]=(Y[i-w-1]+2*Y[i-w]+Y[i-w+1]+2*Y[i-1]+4*Y[i]+2*Y[i+1]+Y[i+w-1]+2*Y[i+w]+Y[i+w+1])/16}
+  const GX=new Float32Array(n),GY=new Float32Array(n),MG=new Float32Array(n);const ms=[];
+  for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){const i=y*w+x,gx=(B[i-w+1]+2*B[i+1]+B[i+w+1])-(B[i-w-1]+2*B[i-1]+B[i+w-1]),gy=(B[i+w-1]+2*B[i+w]+B[i+w+1])-(B[i-w-1]+2*B[i-w]+B[i-w+1]);
+    GX[i]=gx;GY[i]=gy;const m=Math.hypot(gx,gy);MG[i]=m;if(m>8) ms.push(m)}
+  if(ms.length<50) return null;ms.sort((a,b)=>a-b);const T=Math.max(36,ms[Math.floor(ms.length*.75)]);
+  /* line voting: each edge point votes for lines near its own direction */
+  const NT=90,diag=Math.ceil(Math.hypot(w,h)),NR=2*diag+1,acc=new Float32Array(NT*NR),cs=[],sn=[];for(let t=0;t<NT;t++){const a=t*Math.PI/NT;cs.push(Math.cos(a));sn.push(Math.sin(a))}
+  const E=new Uint8Array(n);
+  for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){const i=y*w+x;if(MG[i]<T) continue;E[i]=1;let a=Math.atan2(GY[i],GX[i]);if(a<0) a+=Math.PI;const t0=Math.round(a/Math.PI*NT);
+    for(let dt=-4;dt<=4;dt++){const t=(t0+dt+NT)%NT,r=Math.round(x*cs[t]+y*sn[t])+diag;acc[t*NR+r]+=1}}
+  /* the strongest lines, not too close to each other */
+  const pk=[];for(let k=0;k<NT*NR;k++){if(acc[k]>=Math.min(w,h)*.18) pk.push(k)}pk.sort((a,b)=>acc[b]-acc[a]);
+  const lines=[];for(const k of pk){const t=(k/NR)|0,r=k%NR-diag;if(lines.some(L=>{let dtt=Math.abs(L.t-t);dtt=Math.min(dtt,NT-dtt);return dtt<=5&&Math.abs(L.r-(dtt===Math.abs(L.t-t)?r:-r))<=4})) continue;lines.push({t,r,c:cs[t],s:sn[t]});if(lines.length>=18) break}
+  /* near-horizontal lines have their normal near 90 degrees */
+  const Hs=[],Vs=[];for(const L of lines){const deg=L.t*180/NT;if(deg>55&&deg<125) Hs.push(L);else if(deg<35||deg>145) Vs.push(L)}
+  Hs.push({t:45,r:0,c:0,s:1,v:1},{t:45,r:h-1,c:0,s:1,v:1});Vs.push({t:0,r:0,c:1,s:0,v:1},{t:0,r:w-1,c:1,s:0,v:1});
+  const X=(A,Bl)=>{const dd=A.c*Bl.s-A.s*Bl.c;if(Math.abs(dd)<1e-6) return null;return [(A.r*Bl.s-A.s*Bl.r)/dd,(A.c*Bl.r-A.r*Bl.c)/dd]};
+  const ED=new Uint8Array(n);for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){const i=y*w+x;ED[i]=E[i]||E[i-1]||E[i+1]||E[i-w]||E[i+w]?1:0}
+  const sup=(p,q)=>{const L=Math.hypot(q[0]-p[0],q[1]-p[1]),N=Math.max(2,Math.round(L)),nx=-(q[1]-p[1])/L,ny=(q[0]-p[0])/L;let on=0,cnt=0;
+    for(let k=1;k<N;k++){const x=Math.round(p[0]+(q[0]-p[0])*k/N),y=Math.round(p[1]+(q[1]-p[1])*k/N);if(x<1||y<1||x>=w-1||y>=h-1) continue;cnt++;
+      const i=y*w+x;if(!ED[i]) continue;let best=0;for(const j of [i,i-1,i+1,i-w,i+w]){if(!E[j]) continue;const c=Math.abs(GX[j]*nx+GY[j]*ny)/(MG[j]||1);if(c>best) best=c}if(best>.8) on++}
+    return cnt?[on/cnt,L]:[0,L]};
+  let best=null;
+  for(let a=0;a<Hs.length;a++) for(let b=0;b<Hs.length;b++){if(a===b) continue;for(let c=0;c<Vs.length;c++) for(let e=0;e<Vs.length;e++){if(c===e) continue;
+    const T1=Hs[a],B1=Hs[b],L1=Vs[c],R1=Vs[e];if(T1.v&&B1.v&&L1.v&&R1.v) continue;
+    const P=[X(T1,L1),X(T1,R1),X(B1,R1),X(B1,L1)];if(P.some(p=>!p||p[0]<-.03*w||p[1]<-.03*h||p[0]>1.03*w||p[1]>1.03*h)) continue;
+    if(!(P[0][1]<P[3][1]&&P[1][1]<P[2][1]&&P[0][0]<P[1][0]&&P[3][0]<P[2][0])) continue;
+    let ar=0;for(let k=0;k<4;k++){const [x0,y0]=P[k],[x1,y1]=P[(k+1)%4];ar+=x0*y1-x1*y0}ar=Math.abs(ar)/2;if(ar<n*.1) continue;
+    let ok=true;for(let k=0;k<4&&ok;k++){const p=P[k],u=[P[(k+3)%4][0]-p[0],P[(k+3)%4][1]-p[1]],v=[P[(k+1)%4][0]-p[0],P[(k+1)%4][1]-p[1]],cc=(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v));if(Math.abs(cc)>.5) ok=false}
+    if(!ok) continue;
+    let sc=0,real=0;const sides=[[T1,0,1],[R1,1,2],[B1,2,3],[L1,3,0]];
+    for(const [Ln,i0,i1] of sides){const L=Math.hypot(P[i1][0]-P[i0][0],P[i1][1]-P[i0][1]);if(Ln.v){sc+=.12*L;continue}const [f]=sup(P[i0],P[i1]);if(f<.55){ok=false;break}sc+=f*L;real++}
+    if(!ok||real<2) continue;if(!best||sc>best.sc) best={sc,P}}}
+  if(!best) return null;return best.P.map(([x,y])=>[Math.max(0,Math.min(1,x/w)),Math.max(0,Math.min(1,y/h))])}
 /* homography that sends the unit square (u,v) to the quad P */
 function sqToQuad(P){const [[x0,y0],[x1,y1],[x2,y2],[x3,y3]]=P,dx1=x1-x2,dx2=x3-x2,dy1=y1-y2,dy2=y3-y2,sx=x0-x1+x2-x3,sy=y0-y1+y2-y3,d=dx1*dy2-dx2*dy1;
   const g=(sx*dy2-dx2*sy)/d,hh=(dx1*sy-sx*dy1)/d;
@@ -820,7 +869,7 @@ async function recrop(pi){const p=book().pages[pi];if(!p.frame){toast('Make stic
 const book=()=>S.books[S.cur],page=()=>book().pages[S.page],key=()=>book().id+':'+page().id;
 async function openBook(i){stopBook();S.cur=i;S.page=Math.min(S.page||0,0);save();$('#lib').hidden=true;$('#glass').hidden=false;$('#bookTitle').textContent=book().title;
   camOn();ocrWorker().catch(()=>{});startTrack();trk.page=-1;trk.H=null;trk.miss=9;stripCenter=true;await renderStrip();renderPage();
-  hint(page().scanned?'Tap a sticker to open it.':'Hold the magnifier until the ring is full. Keep the phone still.')}
+  hint(page().scanned?'Tap a sticker to open it.':'Point at the page, then tap the magnifier.')}
 $('#backBtn').onclick=()=>{$('#glass').classList.remove('full');endCrop(false);closeMenu();setDel(false);camOff();stopAudio();$('#glass').hidden=true;$('#lib').hidden=false;renderLib()};
 /* green check = page scanned and stickers appeared (Bell 31 Oct 2026; was: all stickers opened) */
 function done(p){return !!p.scanned}
@@ -841,9 +890,9 @@ async function renderStrip(){renderProg();const b=book();let h='';const sl=$('#s
   h+=`<button class="th addp" id="addPage" aria-label="Add a page"><svg class="pg" viewBox="0 0 88 112"><rect width="88" height="112" rx="4" fill="none" stroke="#636366" stroke-width="3" stroke-dasharray="7 6"/><path d="M44 42v28M30 56h28" stroke="#AEAEB2" stroke-width="5" stroke-linecap="round"/></svg><span>Add</span></button>`;
   $('#strip').innerHTML=h;const s=$('#strip'),c=$('#strip .cur');if(stripCenter&&c){stripCenter=false;s.scrollLeft=c.offsetLeft-(s.clientWidth-c.offsetWidth)/2} else s.scrollLeft=sl}
 $('#strip').addEventListener('click',async e=>{if(mode==='crop') endCrop(false);
-  if(e.target.closest('#addPage')){book().pages.push({id:uid(),scanned:false,thumb:null,stickers:[],own:[]});S.page=book().pages.length-1;save();closeMenu();setDel(false);await renderStrip();renderPage();hint('New page. Hold the magnifier to make stickers.');return}
+  if(e.target.closest('#addPage')){book().pages.push({id:uid(),scanned:false,thumb:null,stickers:[],own:[]});S.page=book().pages.length-1;save();closeMenu();setDel(false);await renderStrip();renderPage();hint('New page. Tap the magnifier to make stickers.');return}
   const t=e.target.closest('.th');if(!t) return;closeMenu();setDel(false);S.page=+t.dataset.p;trk.manualAt=performance.now();trk.page=S.page;trk.H=null;trk.miss=9;trk.unknownSince=0;save();await renderStrip();renderPage();
-  hint(!page().scanned?'New page. Hold the magnifier to make stickers.':'')});
+  hint(!page().scanned?'New page. Tap the magnifier to make stickers.':'')});
 
 const SH={
   play:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#5AADA6',g:'<path d="M9 6.5v11l9-5.5z" fill="#000"/>'},
@@ -998,8 +1047,11 @@ function renderBtn(){const btn=$('#btn');btn.className='btn';
   else{btn.classList.add('bare');btn.innerHTML=SPARK;btn.setAttribute('aria-label',page().scanned?'Reveal stickers':'Make stickers')}}
 let hold=null;const arc=$('#ringArc'),track=$('#ringTrack'),C=2*Math.PI*44;
 const ringOff=()=>{arc.setAttribute('opacity','0');track.setAttribute('opacity','0');arc.setAttribute('stroke-dasharray','0 999')};
-function startHold(){if(mode!=='idle'||page().scanned) return;const t0=performance.now(),dur=450;arc.setAttribute('opacity','1');track.setAttribute('opacity','1');
-  const tick=now=>{const k=Math.min(1,(now-t0)/dur);arc.setAttribute('stroke-dasharray',`${C*k} 999`);if(k<1) hold.raf=requestAnimationFrame(tick);else finishHold()};
+/* one tap on the magnifier (Bell 1 Nov 2026; replaces press and hold): the ring fills, the app waits until the green box stays still
+   (at most 2 s; no box = the whole view), then takes the photo; stickers follow by themselves */
+function startHold(){if(mode!=='idle'||page().scanned||hold) return;const t0=performance.now(),dur=450;arc.setAttribute('opacity','1');track.setAttribute('opacity','1');
+  const tick=now=>{const k=Math.min(1,(now-t0)/dur);arc.setAttribute('stroke-dasharray',`${C*k} 999`);
+    if(k<1||(!liveSteady()&&now-t0<2000)) hold.raf=requestAnimationFrame(tick);else finishHold()};
   hold={raf:requestAnimationFrame(tick)};try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}}
 function cancelHold(){if(!hold) return;cancelAnimationFrame(hold.raf);hold=null;ringOff()}
 let busy=false;
@@ -1012,7 +1064,7 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   let frame=await grabFrame();setTimeout(ringOff,250);
   if(!frame){hint('The camera is off. Allow the camera, then try again.');return}
   /* 1. save the photo at once, cropped to the paper */
-  let box=await autoCrop(frame);const raw0=frame;
+  let box=null;const nq=await nativeQuad(frame);if(nq){const xs=nq.map(p=>p[0]),ys=nq.map(p=>p[1]),x0=Math.max(0,Math.min(...xs)),y0=Math.max(0,Math.min(...ys));box={x:x0,y:y0,w:Math.min(1,Math.max(...xs))-x0,h:Math.min(1,Math.max(...ys))-y0,q:nq}}else box=await autoCrop(frame);const raw0=frame;
   /* book held at an angle: make it a flat, straight rectangle; the whole new photo is the book */
   const real=!!(box&&box.q);if(!real){const eq=await edgeQuad(frame,box);if(eq){box=box||{x:0,y:0,w:1,h:1};box.q=eq}}
   flashCrop(box,box&&box.q);let flat=false,usedQ=null;if(box&&box.q){try{const st=await straighten(frame,box.q,real);if(st){usedQ=box.q;frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
@@ -1026,7 +1078,7 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   busy=true;$('#btn').classList.add('busy');hint('Reading the page…',true);let words=null,err=null;
   try{words=await readSafe(frame);ocrReady=true}catch(e){err=e}
   busy=false;$('#btn').classList.remove('busy');
-  if(err){hint(err.message==='timeout'?'Reading took too long. Hold again.':'Could not read ('+(err.message||'the reader did not load')+'). Hold again.');return}
+  if(err){hint(err.message==='timeout'?'Reading took too long. Tap again.':'Could not read ('+(err.message||'the reader did not load')+'). Tap again.');return}
   const better=flat?box:await smartCrop(frame,words);if(JSON.stringify(better)!==JSON.stringify(box)){box=better;try{await savePhoto(b,p,frame,box)}catch(e){}}
   const r=pickStickers(words,box);
   if(b!==book()||p!==page()) return;
@@ -1043,8 +1095,7 @@ async function cropData(frame,box,max){const im=await loadImg(frame),r=box||{x:0
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*m));c.height=Math.max(1,Math.round(sh*m));c.getContext('2d').drawImage(im,r.x*W,r.y*H,sw,sh,0,0,c.width,c.height);
   if(typeof frame!=='string') URL.revokeObjectURL(im.src);return c.toDataURL('image/jpeg',.8)}
 const btn=$('#btn');
-btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!page().scanned){e.preventDefault();btn.setPointerCapture(e.pointerId);startHold()}});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>{if(hold){cancelHold();hint('Keep holding until the ring is full.')}}));
+btn.addEventListener('pointerdown',e=>{if(mode==='idle'&&!page().scanned){e.preventDefault();startHold()}});
 btn.addEventListener('contextmenu',e=>e.preventDefault());
 btn.addEventListener('click',e=>{e.stopPropagation();if(mode==='crop'){endCrop(true);return}if(mode==='menu'){closeMenu();return}if(mode==='delete'){setDel(false);return}
   if(mode.startsWith('place')){mode='idle';renderBtn();hint('');return}if(page().scanned) openMenu()});
@@ -1055,7 +1106,7 @@ function openMenu(){mode='menu';$('#dim').hidden=false;
 function closeMenu(){if(mode==='menu') mode='idle';$('#dim').hidden=true;$('#menu').hidden=true;$('#menu2').hidden=true;$('#glass').classList.remove('menuopen');renderBtn()}
 document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m) return;const k=m.dataset.m;closeMenu();
   if(k==='voice'||k==='q'){mode='place:'+k;renderBtn();hint('Tap the page to put it there.',true)}
-  if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;$('#still').hidden=true;layoutStill();delete shown[key()];save();drawStickers(false);renderBtn();renderStrip();hint('Your own stickers stay. Hold the magnifier to scan again.')}
+  if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;$('#still').hidden=true;layoutStill();delete shown[key()];save();drawStickers(false);renderBtn();renderStrip();hint('Your own stickers stay. Tap the magnifier to scan again.')}
   if(k==='del') setDel(true);
   if(k==='crop') recrop(S.page);
   if(k==='rot') rotatePage(S.page)});

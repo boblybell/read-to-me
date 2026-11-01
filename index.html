@@ -571,7 +571,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='88';
+const APPV='89';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -622,7 +622,10 @@ function bgCrop(d,w,h){const n=w*h,R=new Float32Array(n),G=new Float32Array(n),B
   const near=i=>{let bd=1e9,bk=0;for(let k=0;k<K;k++){const a=R[i]-C[k][0],b=G[i]-C[k][1],c=B[i]-C[k][2],v=a*a+b*b+c*c;if(v<bd){bd=v;bk=k}}return [Math.sqrt(bd),bk]};
   for(let it=0;it<6;it++){const s=C.map(()=>[0,0,0,0]);for(const i of ed){const k=near(i)[1];s[k][0]+=R[i];s[k][1]+=G[i];s[k][2]+=B[i];s[k][3]++}s.forEach((v,k)=>{if(v[3]) C[k]=[v[0]/v[3],v[1]/v[3],v[2]/v[3]]})}
   const ev=ed.map(i=>near(i)[0]).sort((a,b)=>a-b),T=Math.max(26,ev[Math.floor(ev.length*.9)]*1.6);
-  const F=new Uint8Array(n);for(let i=0;i<n;i++) F[i]=near(i)[0]>T?1:0;
+  /* a colour between two background colours (the soft line where a table meets a wall) is background too (Bell 1 Nov 2026: the table edge was taken as the book edge) */
+  const B_=B;const segD=i=>{let bd=near(i)[0];for(let a=0;a<K;a++) for(let b=a+1;b<K;b++){const A=C[a],B=C[b],u=[B[0]-A[0],B[1]-A[1],B[2]-A[2]],L2=u[0]*u[0]+u[1]*u[1]+u[2]*u[2];if(L2<1) continue;
+      const v=[R[i]-A[0],G[i]-A[1],B_[i]-A[2]],t=(v[0]*u[0]+v[1]*u[1]+v[2]*u[2])/L2;if(t<=0||t>=1) continue;const e0=v[0]-t*u[0],e1=v[1]-t*u[1],e2=v[2]-t*u[2],dd=Math.sqrt(e0*e0+e1*e1+e2*e2);if(dd<bd) bd=dd}return bd};
+  const F=new Uint8Array(n);for(let i=0;i<n;i++) F[i]=near(i)[0]>T&&segD(i)>T?1:0;
   /* join the parts of the book, then keep the largest one */
   const Q=new Uint8Array(n);for(let y=0;y<h;y++) for(let x=0;x<w;x++){let on=0;for(let dy=-2;dy<=2&&!on;dy++) for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<w&&yy<h&&F[yy*w+xx]){on=1;break}}Q[y*w+x]=on}
   const seen=new Int32Array(n),parts=[];
@@ -646,8 +649,12 @@ function bgCrop(d,w,h){const n=w*h,R=new Float32Array(n),G=new Float32Array(n),B
 /* the four corners of the book (Bell 1 Nov 2026: straighten a book held at an angle).
    Corners = the book points furthest toward each corner of the photo. Kept only when the book looks like a clean four-sided shape. */
 function bookQuad(F,lab,ids,w,h){let c=[null,null,null,null],v=[1e9,-1e9,-1e9,1e9],cnt=0;
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){const i=y*w+x;if(!F[i]||!ids.has(lab[i])) continue;cnt++;
-    const a=x+y,b=x-y;if(a<v[0]){v[0]=a;c[0]=[x,y]}if(b>v[1]){v[1]=b;c[1]=[x,y]}if(a>v[2]){v[2]=a;c[2]=[x,y]}if(b<v[3]){v[3]=b;c[3]=[x,y]}}
+  /* the book area with its holes filled (light parts of a cover can look like the table) */
+  const n=w*h,out=new Uint8Array(n),st=[];for(let x=0;x<w;x++){st.push(x,(h-1)*w+x)}for(let y=0;y<h;y++){st.push(y*w,y*w+w-1)}
+  for(const i of st){if(!ids.has(lab[i])&&!out[i]){out[i]=1}}const q=st.filter(i=>out[i]);
+  while(q.length){const i=q.pop(),x=i%w;for(const j of [i-1,i+1,i-w,i+w]){if(j<0||j>=n||out[j]||ids.has(lab[j])) continue;if((j===i-1&&x===0)||(j===i+1&&x===w-1)) continue;out[j]=1;q.push(j)}}
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){const i=y*w+x;if(out[i]) continue;cnt++;
+    const a=x+y,b=x-y;if(a<v[0]){v[0]=a;c[0]=[x+2,y+2]}if(b>v[1]){v[1]=b;c[1]=[x-2,y+2]}if(a>v[2]){v[2]=a;c[2]=[x-2,y-2]}if(b<v[3]){v[3]=b;c[3]=[x+2,y-2]}}
   if(!c[0]) return null;
   /* pixel centres, then normalized 0..1 (order: top left, top right, bottom right, bottom left) */
   const P=c.map(([x,y],k)=>[(x+(k===1||k===2?1:0))/w,(y+(k>=2?1:0))/h]);
@@ -700,6 +707,9 @@ function edgeQuadData(d,w,h,box){try{const n=w*h,R=new Float32Array(n),G=new Flo
   const P=[X(top,lef),X(top,rig),X(bot,rig),X(bot,lef)];if(P.some(v=>!v||v[0]<-.3||v[1]<-.3||v[0]>1.3||v[1]>1.3)) return null;
   const cl=P.map(([x,y])=>[Math.max(0,Math.min(1,x)),Math.max(0,Math.min(1,y))]);
   let ar=0;for(let k=0;k<4;k++){const [x0,y0]=cl[k],[x1,y1]=cl[(k+1)%4];ar+=x0*y1-x1*y0}if(Math.abs(ar)/2<.2) return null;
+  /* never a wild skew: every corner of the shape must be close to a right angle (Bell 1 Nov 2026) */
+  for(let k=0;k<4;k++){const p=cl[k],a1=cl[(k+3)%4],a2=cl[(k+1)%4],u=[(a1[0]-p[0])*w,(a1[1]-p[1])*h],v=[(a2[0]-p[0])*w,(a2[1]-p[1])*h];
+    const cs=(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v)||1);if(Math.abs(cs)>Math.cos(65*Math.PI/180)) return null}
   return cl}catch(e){return null}}
 /* homography that sends the unit square (u,v) to the quad P */
 function sqToQuad(P){const [[x0,y0],[x1,y1],[x2,y2],[x3,y3]]=P,dx1=x1-x2,dx2=x3-x2,dy1=y1-y2,dy2=y3-y2,sx=x0-x1+x2-x3,sy=y0-y1+y2-y3,d=dx1*dy2-dx2*dy1;

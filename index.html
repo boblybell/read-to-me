@@ -571,7 +571,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='89';
+const APPV='90';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -582,20 +582,28 @@ async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInlin
   setTimeout(()=>{if(stream&&!$('#glass').hidden&&!v.videoWidth){n.hidden=false;n.textContent='The camera started, but no picture came. Close the app fully and open it again.'}},4000);
   v.onpause=()=>{if(stream&&!$('#glass').hidden&&!document.hidden){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}};
   n.hidden=true;try{await v.play()}catch(e){n.hidden=false;n.textContent='Tap here to start the camera.';n.onclick=()=>{n.onclick=null;camOn()}}}
-/* live edges: a few times a second, look for the book in a small camera picture and outline it in green */
-let liveQ=null,liveMiss=0;
+/* live edges (Bell 1 Nov 2026: must feel as quick as the iOS scanner).
+   About 12 times a second: look for the book in a small camera picture (fast colour method; the slower edge-line method only every 4th time).
+   The outline glides to the new place on every screen frame, so it follows the book without delay. */
+let liveT=null,liveQ=null,liveMiss=0,liveN=0;
 function liveEdges(){const el=$('#liveq'),v=$('#cam');
   const show=!$('#glass').hidden&&stream&&v.videoWidth&&!stillOn()&&!busy&&!crop&&(mode==='idle')&&book()&&!page().scanned;
-  if(!show){el.setAttribute('hidden','');liveQ=null;return}
+  if(!show){liveT=null;return}
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,w=96,h=Math.max(1,Math.round(w*sh/sw));
-  const c=liveEdges.c||(liveEdges.c=document.createElement('canvas'));c.width=w;c.height=h;const g=c.getContext('2d',{willReadFrequently:true});
+  const c=liveEdges.c||(liveEdges.c=document.createElement('canvas'));if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d',{willReadFrequently:true});
   g.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);const d=g.getImageData(0,0,w,h).data;
-  let q=null;try{const bk=bgCrop(d,w,h);q=bk&&bk.q||edgeQuadData(d,w,h,null)}catch(e){}
+  let q=null;try{const bk=bgCrop(d,w,h);q=bk&&bk.q}catch(e){}
+  let tried=!!q;if(!q&&(++liveN%4===0||!liveT)){tried=true;try{const w2=64,h2=Math.max(1,Math.round(w2*sh/sw)),c2=liveEdges.c2||(liveEdges.c2=document.createElement('canvas'));c2.width=w2;c2.height=h2;
+    const g2=c2.getContext('2d',{willReadFrequently:true});g2.drawImage(c,0,0,w2,h2);q=edgeQuadData(g2.getImageData(0,0,w2,h2).data,w2,h2,null)}catch(e){}}
+  if(!tried) return;
   if(q&&q.every(([x,y])=>x<=.005||x>=.995)&&q.every(([x,y])=>y<=.005||y>=.995)) q=null;
-  if(!q){if(++liveMiss>2){el.setAttribute('hidden','');liveQ=null}return}liveMiss=0;
-  liveQ=liveQ?liveQ.map((p,i)=>[p[0]*.5+q[i][0]*.5,p[1]*.5+q[i][1]*.5]):q;
-  el.querySelector('polygon').setAttribute('points',liveQ.map(([x,y])=>(x*1000).toFixed(1)+','+(y*1000).toFixed(1)).join(' '));el.removeAttribute('hidden')}
-(function liveLoop(){const t=performance.now();try{liveEdges()}catch(e){}setTimeout(liveLoop,Math.max(250,(performance.now()-t)*3))})();
+  if(!q){if(++liveMiss>2) liveT=null;return}liveMiss=0;liveT=q}
+(function liveLoop(){const t=performance.now();try{liveEdges()}catch(e){}setTimeout(liveLoop,Math.max(70,(performance.now()-t)*1.5))})();
+(function liveDraw(){const el=$('#liveq');
+  if(!liveT){if(!el.hasAttribute('hidden')) el.setAttribute('hidden','');liveQ=null}
+  else{liveQ=liveQ?liveQ.map((p,i)=>[p[0]+(liveT[i][0]-p[0])*.45,p[1]+(liveT[i][1]-p[1])*.45]):liveT.map(p=>[...p]);
+    el.querySelector('polygon').setAttribute('points',liveQ.map(([x,y])=>(x*1000).toFixed(1)+','+(y*1000).toFixed(1)).join(' '));if(el.hasAttribute('hidden')) el.removeAttribute('hidden')}
+  requestAnimationFrame(liveDraw)})();
 function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); else if(!$('#glass').hidden){camOn();startTrack()}});
 /* the part of the camera picture that the glass shows, kept as the page photo */

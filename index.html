@@ -571,10 +571,10 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='93';
+const APPV='94';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
-    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
+    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
     catch(e){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false})}
       catch(e2){n.hidden=false;n.textContent=(e2.name==='NotAllowedError'?'The camera is not allowed. On iPhone: Settings › Safari › Camera › Allow. Then close and open the app.':'The camera could not start ('+e2.name+'). Close the app and open it again.');return}}
     if($('#glass').hidden){camOff();return}
@@ -623,7 +623,7 @@ function camOff(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null
 document.addEventListener('visibilitychange',()=>{if(document.hidden) camOff(); else if(!$('#glass').hidden){camOn();startTrack()}});
 /* the part of the camera picture that the glass shows, kept as the page photo */
 async function grabFrame(){const v=$('#cam');if(!stream||!v.videoWidth) return null;
-  const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,m=Math.min(1,1200/Math.max(sw,sh));
+  const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k,m=Math.min(1,2400/Math.max(sw,sh));
   const c=document.createElement('canvas');c.width=Math.round(sw*m);c.height=Math.round(sh*m);
   c.getContext('2d').drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.8)}
 /* load a saved photo into an image (works on all iPhones; no createImageBitmap) */
@@ -794,7 +794,7 @@ async function straighten(frame,P,real){const im=await loadImg(frame),W=im.natur
   const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.drawImage(im,0,0);if(typeof frame!=='string') URL.revokeObjectURL(im.src);
   const sd=g.getImageData(0,0,W,H).data,Q=P.map(([x,y])=>[x*W,y*H]),D=(a,b)=>Math.hypot(Q[a][0]-Q[b][0],Q[a][1]-Q[b][1]);
   let ow=(D(0,1)+D(3,2))/2,oh=(D(0,3)+D(1,2))/2;/* real shape: only when all four corners are real book corners, and never more than 10% away from the measured sides (Bell 1 Nov 2026: do not change the book's proportions) */
-  const ar=real?trueAspect(Q,W,H):null;if(ar){const r0=ow/oh;oh=ow/Math.max(r0*.9,Math.min(r0*1.1,ar))}const m=Math.min(1,1200/Math.max(ow,oh));ow=Math.max(8,Math.round(ow*m));oh=Math.max(8,Math.round(oh*m));
+  const ar=real?trueAspect(Q,W,H):null;if(ar){const r0=ow/oh;oh=ow/Math.max(r0*.9,Math.min(r0*1.1,ar))}const m=Math.min(1,2400/Math.max(ow,oh));ow=Math.max(8,Math.round(ow*m));oh=Math.max(8,Math.round(oh*m));
   const [a,b,cc,d,e,f,gg,hh]=sqToQuad(Q),o=document.createElement('canvas');o.width=ow;o.height=oh;const og=o.getContext('2d'),od=og.createImageData(ow,oh),dd=od.data;
   const ei=.012;for(let y=0;y<oh;y++){const v=ei+(1-2*ei)*(y+.5)/oh;for(let x=0;x<ow;x++){const u=ei+(1-2*ei)*(x+.5)/ow,z=gg*u+hh*v+1,sx=(a*u+b*v+cc)/z-.5,sy=(d*u+e*v+f)/z-.5;
     const X=Math.max(0,Math.min(W-2,Math.floor(sx))),Y=Math.max(0,Math.min(H-2,Math.floor(sy))),fx=Math.max(0,Math.min(1,sx-X)),fy=Math.max(0,Math.min(1,sy-Y)),i=(Y*W+X)*4,j=(y*ow+x)*4;

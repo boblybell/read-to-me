@@ -571,7 +571,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='92';
+const APPV='93';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -595,7 +595,7 @@ const nativeScan=()=>{try{if(!isNativeApp()) return null;if(nativeDS) return nat
   return null}catch(e){return null}};
 async function nativeQuad(img){const P=nativeScan();if(!P) return null;try{const r=await P.detect({image:img});
   if(r&&r.found&&r.confidence>.4&&r.quad&&r.quad.length===4){nativeStat.ok++;return r.quad}nativeStat.none++;return null}catch(e){nativeStat.err++;nativeStat.last=String(e&&e.message||e).slice(0,60);return null}}
-const finderInfo=()=>!isNativeApp()?'Page finder: web.':!nativeScan()?'Page finder: web (Apple finder NOT found in this app).':`Page finder: Apple (found ${nativeStat.ok}, none ${nativeStat.none}, errors ${nativeStat.err}${nativeStat.last?': '+esc(nativeStat.last):''}).`;
+const finderInfo=()=>!isNativeApp()?'Page finder: web.':!nativeScan()?`Page finder: web (Apple finder NOT found in this app. Native parts: ${esc((()=>{try{return [...new Set([...Object.keys(Capacitor.Plugins||{}),...((Capacitor.PluginHeaders||[]).map(h=>h.name))])].join(', ')||'none'}catch(e){return '?'}})())}).`:`Page finder: Apple (found ${nativeStat.ok}, none ${nativeStat.none}, errors ${nativeStat.err}${nativeStat.last?': '+esc(nativeStat.last):''}).`;
 /* a new result: move the target, and note how long the box has stayed in the same place */
 function liveApply(q){if(q&&q.every(([x,y])=>x<=.005||x>=.995)&&q.every(([x,y])=>y<=.005||y>=.995)) q=null;
   if(!q){if(++liveMiss>2){liveT=null;liveSince=0}return}liveMiss=0;

@@ -554,7 +554,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='82';
+const APPV='83';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false})}
@@ -682,10 +682,11 @@ function trueAspect(Q,W,H){const m1=[...Q[0],1],m2=[...Q[1],1],m4=[...Q[2],1],m3
   const q=n=>{const x=n[0]-u0*n[2],y=n[1]-v0*n[2];return (x*x+y*y)/f2+n[2]*n[2]};
   const r=Math.sqrt(q(n2)/q(n3));return r>.25&&r<4?r:null}
 /* flat, straight photo of the book: map every output pixel back into the camera photo */
-async function straighten(frame,P){const im=await loadImg(frame),W=im.naturalWidth,H=im.naturalHeight;
+async function straighten(frame,P,real){const im=await loadImg(frame),W=im.naturalWidth,H=im.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.drawImage(im,0,0);if(typeof frame!=='string') URL.revokeObjectURL(im.src);
   const sd=g.getImageData(0,0,W,H).data,Q=P.map(([x,y])=>[x*W,y*H]),D=(a,b)=>Math.hypot(Q[a][0]-Q[b][0],Q[a][1]-Q[b][1]);
-  let ow=(D(0,1)+D(3,2))/2,oh=(D(0,3)+D(1,2))/2;const ar=trueAspect(Q,W,H);if(ar) oh=ow/ar;const m=Math.min(1,1200/Math.max(ow,oh));ow=Math.max(8,Math.round(ow*m));oh=Math.max(8,Math.round(oh*m));
+  let ow=(D(0,1)+D(3,2))/2,oh=(D(0,3)+D(1,2))/2;/* real shape: only when all four corners are real book corners, and never more than 10% away from the measured sides (Bell 1 Nov 2026: do not change the book's proportions) */
+  const ar=real?trueAspect(Q,W,H):null;if(ar){const r0=ow/oh;oh=ow/Math.max(r0*.9,Math.min(r0*1.1,ar))}const m=Math.min(1,1200/Math.max(ow,oh));ow=Math.max(8,Math.round(ow*m));oh=Math.max(8,Math.round(oh*m));
   const [a,b,cc,d,e,f,gg,hh]=sqToQuad(Q),o=document.createElement('canvas');o.width=ow;o.height=oh;const og=o.getContext('2d'),od=og.createImageData(ow,oh),dd=od.data;
   const ei=.012;for(let y=0;y<oh;y++){const v=ei+(1-2*ei)*(y+.5)/oh;for(let x=0;x<ow;x++){const u=ei+(1-2*ei)*(x+.5)/ow,z=gg*u+hh*v+1,sx=(a*u+b*v+cc)/z-.5,sy=(d*u+e*v+f)/z-.5;
     const X=Math.max(0,Math.min(W-2,Math.floor(sx))),Y=Math.max(0,Math.min(H-2,Math.floor(sy))),fx=Math.max(0,Math.min(1,sx-X)),fy=Math.max(0,Math.min(1,sy-Y)),i=(Y*W+X)*4,j=(y*ow+x)*4;
@@ -928,8 +929,8 @@ async function finishHold(){hold=null;const b=book(),p=page(),was=p.scanned;
   /* 1. save the photo at once, cropped to the paper */
   let box=await autoCrop(frame);flashCrop(box);
   /* book held at an angle: make it a flat, straight rectangle; the whole new photo is the book */
-  if(!(box&&box.q)){const eq=await edgeQuad(frame,box);if(eq){box=box||{x:0,y:0,w:1,h:1};box.q=eq}}
-  let flat=false;if(box&&box.q){try{const st=await straighten(frame,box.q);if(st){frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
+  const real=!!(box&&box.q);if(!real){const eq=await edgeQuad(frame,box);if(eq){box=box||{x:0,y:0,w:1,h:1};box.q=eq}}
+  let flat=false;if(box&&box.q){try{const st=await straighten(frame,box.q,real);if(st){frame=st;box={x:0,y:0,w:1,h:1};flat=true}}catch(e){}}
   if(box) delete box.q;
   p.frame='f'+p.id;try{await blobPut(p.frame,frame);urls.delete(p.frame)}catch(e){}
   try{await savePhoto(b,p,frame,box)}catch(e){toast('Could not save the page photo ('+(e&&e.message||e)+').')}

@@ -22,6 +22,7 @@ npm i -D @capacitor/cli@latest
 ./scripts/build-www.sh
 npx cap add ios
 cp native/ios/DocScanPlugin.swift native/ios/MainViewController.swift ios/App/App/
+cp native/ios/AppIcon-1024.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
 ```
 
 Then in Xcode (`npx cap open ios`):

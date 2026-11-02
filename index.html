@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="ReadToMe">
 <meta name="theme-color" content="#2A2A2C">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-a180.png">
-<link rel="icon" href="icon-a192.png">
+<link rel="apple-touch-icon" href="icon-b180.png">
+<link rel="icon" href="icon-b192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500&family=Jost:wght@400;500&family=Nunito:wght@800&display=swap">
 <style>
 /* Layout: one phone-sized app; library (wood shelves) and glass (dark camera screen) swap in place */
@@ -581,7 +581,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='109';
+const APPV='110';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

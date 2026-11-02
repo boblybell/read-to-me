@@ -3,6 +3,6 @@
 set -e
 cd "$(dirname "$0")/.."
 rm -rf www && mkdir -p www
-cp index.html manifest.webmanifest lib-bg-paper.jpg icon-p*.png www/
+cp index.html manifest.webmanifest lib-bg-paper.jpg icon-q*.png www/
 cp -R vendor www/
 echo "www/ ready"

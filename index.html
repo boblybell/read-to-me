@@ -86,8 +86,8 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .st .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;display:none;place-items:center;font:500 13px/1 var(--ui)}
 .delmode .st .x{display:grid}
 .st.still{animation:none}
-.st.swirl{animation:swirl 8s linear infinite}
-@keyframes swirl{0.0%{transform:translate(4.0px,0.0px) rotate(0.0deg)}12.5%{transform:translate(2.83px,2.83px) rotate(3.54deg)}25.0%{transform:translate(0.0px,4.0px) rotate(5.0deg)}37.5%{transform:translate(-2.83px,2.83px) rotate(3.54deg)}50.0%{transform:translate(-4.0px,0.0px) rotate(0.0deg)}62.5%{transform:translate(-2.83px,-2.83px) rotate(-3.54deg)}75.0%{transform:translate(-0.0px,-4.0px) rotate(-5.0deg)}87.5%{transform:translate(2.83px,-2.83px) rotate(-3.54deg)}100.0%{transform:translate(4.0px,-0.0px) rotate(-0.0deg)}}
+.st.swirl{animation:swirl 5s ease-in-out infinite alternate}
+@keyframes swirl{0%{transform:translate(-2px,1px) rotate(-3deg)}30%{transform:translate(1px,-4px) rotate(1deg)}55%{transform:translate(3px,-6px) rotate(3.5deg)}80%{transform:translate(1px,-2px) rotate(1deg)}100%{transform:translate(-1px,0) rotate(-1.5deg)}}
 .delmode .st{animation:wig .3s ease-in-out infinite alternate}
 .st.playing::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid #5AADA6;animation:ring 1s ease-out infinite}
 @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
@@ -585,7 +585,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='116';
+const APPV='117';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -963,12 +963,12 @@ function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s
   go()}
 function flyPos(){if(!nfly) return;const el=document.querySelector(`.st[data-id="${nfly.dataset.for}"]`);if(!el){nfly.remove();nfly=null;return}
   nfly.style.left=el.style.left;nfly.style.top=el.style.top;nfly.classList.toggle('flip',parseFloat(el.style.left)>62)}
-/* stickers pop only right after they are made; open book and recognize = no motion; after a page swipe they swirl slowly, each in its own way (Bell 2 Nov 2026) */
+/* stickers pop only right after they are made; open book and recognize = no motion; after a page swipe they float like in water (bob up and down, sway, tilt), each in its own way (Bell 2 Nov 2026) */
 let swirlNext=false;
 function drawStickers(pop){const sw=swirlNext;swirlNext=false;const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
   allStickers().forEach((s,i)=>{const d=document.createElement('button');d.className='st'+(s.open?' seen':'');d.dataset.id=s.id;
     d.style.left=(s.x*100)+'%';d.style.top=(s.y*100)+'%';d.setAttribute('aria-label',{play:'Read aloud',word:'Word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]);
-    if(pop) d.style.animationDelay=(i*160)+'ms';else if(sw){d.classList.add('swirl');d.style.animationDuration=(7+Math.random()*5).toFixed(1)+'s';d.style.animationDelay=(-Math.random()*12).toFixed(1)+'s';if(Math.random()<.5) d.style.animationDirection='reverse'}else d.classList.add('still');d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
+    if(pop) d.style.animationDelay=(i*160)+'ms';else if(sw){d.classList.add('swirl');d.style.animationDuration=(3.5+Math.random()*2.5).toFixed(1)+'s';d.style.animationDelay=(-Math.random()*6).toFixed(1)+'s';if(Math.random()<.5) d.style.animationDirection='alternate-reverse'}else d.classList.add('still');d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
 /* ================= page tracking =================
    The app finds the saved page in the live camera picture, about 8 times a second, on this phone only.
    Stickers are saved by their place on the page photo; they follow the paper and fade when the page leaves the glass.

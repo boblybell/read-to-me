@@ -597,7 +597,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='138';
+const APPV='139';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -1072,7 +1072,7 @@ function forget(p){trk.refs.delete(p.id);if(trk.page===book().pages.indexOf(p)){
 
 /* one button */
 /* magnifier like Bell's picture (option 1, Bell 2 Nov 2026): thin WHITE ring and handle (Bell 2 Nov 2026), see-through lens (15% white), WHITE curved reflection inside on the left, no sparkles; thin collar (narrower than the handle), small gap, round handle */
-const SPARK='<svg viewBox="0 0 48 48" class="mag"><g transform="translate(22.66 24) scale(1.12) translate(-24 -24)"><circle cx="20" cy="20" r="12.5" fill="rgba(255,255,255,.15)"/><circle cx="20" cy="20" r="12.5" fill="none" stroke="#fff" stroke-width="3"/><path d="M29.6 29.6l3 3" stroke="#fff" stroke-width="2.6"/><path d="M35.2 35.2L42 42" stroke="#fff" stroke-width="4.8" stroke-linecap="round"/><path d="M16.7 12.93A7.8 7.8 0 0 0 16.1 26.75A12 12 0 0 1 16.7 12.93z" fill="#fff" fill-opacity=".5"/></g></svg>';
+const SPARK='<svg viewBox="0 0 48 48" class="mag"><g transform="translate(28.48 24) scale(1.12) translate(-24 -24)"><circle cx="20" cy="20" r="12.5" fill="rgba(255,255,255,.15)"/><circle cx="20" cy="20" r="12.5" fill="none" stroke="#fff" stroke-width="3"/><path d="M29.6 29.6l3 3" stroke="#fff" stroke-width="2.6"/><path d="M35.2 35.2L42 42" stroke="#fff" stroke-width="4.8" stroke-linecap="round"/><path d="M16.7 12.93A7.8 7.8 0 0 0 16.1 26.75A12 12 0 0 1 16.7 12.93z" fill="#fff" fill-opacity=".5"/></g></svg>';
 const PLUSG='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/></svg>';
 const XG='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="#000" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const CHECKW='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';

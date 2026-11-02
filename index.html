@@ -315,7 +315,8 @@ html{overflow:hidden}
 html:not(.ready) #app{visibility:hidden}
 #safeprobe{position:fixed;top:0;left:0;width:0;height:0;padding-top:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none}
 body{overflow:visible}
-#app{height:calc(100% + env(safe-area-inset-top,0px))}
+/* only the Home Screen web app needs the extra status-bar height; the iPhone app (Capacitor) already fills the whole screen (2 Nov 2026) */
+html.pwa #app{height:calc(100% + env(safe-area-inset-top,0px))}
 .welcome{position:relative;margin:30px 24px 0;padding:18px;border-radius:14px;background:rgba(60,30,5,.35);color:var(--cream);font:400 15px/22px var(--ui);text-align:center}
 </style>
 </head><body>
@@ -380,7 +381,7 @@ body{overflow:visible}
 
 <script>
 (function(){const pr=document.createElement('div');pr.id='safeprobe';document.body.appendChild(pr);
- const solo=navigator.standalone||matchMedia('(display-mode: standalone)').matches,t0=performance.now();
+ const solo=!window.Capacitor&&(navigator.standalone||matchMedia('(display-mode: standalone)').matches),t0=performance.now();if(solo) document.documentElement.classList.add('pwa');
  (function chk(){const v=parseFloat(getComputedStyle(pr).paddingTop)||0;
   if(!solo||v>0||performance.now()-t0>1000) document.documentElement.classList.add('ready'); else requestAnimationFrame(chk)})()})();
 (() => {
@@ -586,7 +587,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='121';
+const APPV='122';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

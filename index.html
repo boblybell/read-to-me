@@ -508,10 +508,12 @@ let CID=0;
 const solid=T=>`<path d="${T.shape}" fill="${T.c}"/>${T.band?`<path d="${T.band}" fill="${T.c}" opacity=".45"/>`:''}<path d="${T.g}" fill="none" stroke="${T.gOut?T.c:'#fff'}" stroke-width="${T.gw||2}" stroke-linecap="round" stroke-linejoin="round"/>`;
 /* not done = solid grey shape, no outline (Bell 31 Oct 2026, like the game HUD reference) */
 const outline=T=>`<path d="${T.shape}" style="fill:var(--off,${GREY})"/>${T.band?`<path d="${T.band}" style="fill:var(--off,${GREY})" opacity=".45"/>`:''}<path d="${T.g}" fill="none" style="stroke:${T.gOut?'var(--off,'+GREY+')':'var(--offg,#fff)'}" stroke-width="${T.gw||2}" stroke-linecap="round" stroke-linejoin="round"/>`;
-const icon=(t,p)=>{const T=TYPES[t];
-  if(p>=1) return `<svg class="li" viewBox="0 0 24 24">${solid(T)}</svg>`;
-  if(p<=0) return `<svg class="li" viewBox="0 0 24 24">${outline(T)}</svg>`;
-  const id='c'+(CID++);return `<svg class="li" viewBox="0 0 24 24"><defs><clipPath id="${id}"><rect width="${2.5+p*19}" height="24"/></clipPath></defs>${outline(T)}<g clip-path="url(#${id})">${solid(T)}</g></svg>`};
+/* hole=true: the A and ? are cut out, so the cover shows through (book covers, Bell 2 Nov 2026) */
+const icon=(t,p,hole)=>{const T=TYPES[t];let inner;
+  if(p>=1) inner=solid(T);else if(p<=0) inner=outline(T);
+  else{const id='c'+(CID++);inner=`<defs><clipPath id="${id}"><rect width="${2.5+p*19}" height="24"/></clipPath></defs>${outline(T)}<g clip-path="url(#${id})">${solid(T)}</g>`}
+  if(hole&&!T.gOut){const m='m'+(CID++);inner=`<defs><mask id="${m}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="${T.g}" fill="none" stroke="#000" stroke-width="${T.gw||2}" stroke-linecap="round" stroke-linejoin="round"/></mask></defs><g mask="url(#${m})">${inner}</g>`}
+  return `<svg class="li" viewBox="0 0 24 24">${inner}</svg>`};
 
 /* ================= library ================= */
 const PLUS='<svg viewBox="0 0 24 24"><path d="M10.4 3.5h3.2c.4 0 .7.3.7.7v6.1h6.1c.4 0 .7.3.7.7v2c0 .4-.3.7-.7.7h-6.1v6.1c0 .4-.3.7-.7.7h-3.2c-.4 0-.7-.3-.7-.7v-6.1H3.6c-.4 0-.7-.3-.7-.7v-2c0-.4.3-.7.7-.7h6.1V4.2c0-.4.3-.7.7-.7z"/></svg>';
@@ -520,7 +522,7 @@ async function renderLib(){
   const items=[];
   for(const [i,b] of S.books.entries()){const pr=progress(b);const cu=await blobURL(b.cover);
     const face=b.coverData?`<img class="cov" src="${b.coverData}" alt="">`:cu?`<img class="cov" src="${cu}" alt="">`:b.art?`<svg class="art" viewBox="0 0 104 150" preserveAspectRatio="none"><g transform="translate(0 14)">${art[b.art](104,136)}</g><rect width="104" height="14" fill="${b.bg}"/></svg>`:'';
-    items.push(`<div class="cell"><button class="book" data-b="${i}" aria-label="${esc(b.title)}" style="background:${b.bg}">${face}${bookClips(b).length?`<span class="cplay${bookPlay&&bookPlay.i===i?' on':''}" role="button" data-cp="${i}" aria-label="${bookPlay&&bookPlay.i===i?'Stop':'Play all recordings'}">${bookPlay&&bookPlay.i===i?STOPI:PLAYI}</span>`:''}<div class="band">${Object.keys(TYPES).map(t=>icon(t,pr[t])).join('')}</div></button></div>`)}
+    items.push(`<div class="cell"><button class="book" data-b="${i}" aria-label="${esc(b.title)}" style="background:${b.bg}">${face}${bookClips(b).length?`<span class="cplay${bookPlay&&bookPlay.i===i?' on':''}" role="button" data-cp="${i}" aria-label="${bookPlay&&bookPlay.i===i?'Stop':'Play all recordings'}">${bookPlay&&bookPlay.i===i?STOPI:PLAYI}</span>`:''}<div class="band">${Object.keys(TYPES).map(t=>icon(t,pr[t],true)).join('')}</div></button></div>`)}
   items.push(`<div class="cell"><button class="add" id="addBtn" aria-label="Add a book">${PLUS}</button></div>`);
   let h='';for(let i=0;i<items.length;i+=3) h+=`<div class="shelf">${items.slice(i,i+3).join('')}<div class="ledge"></div></div>`;
   $('#shelves').innerHTML=h;
@@ -594,7 +596,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='131';
+const APPV='132';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

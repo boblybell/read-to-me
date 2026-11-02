@@ -59,7 +59,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 #glass{background:var(--ground)}
 .bar{display:flex;align-items:center;gap:12px;height:56px;flex:none;background:var(--banner);padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .bar .back{width:44px;height:44px;display:grid;place-items:center}
-.bar .back svg{width:26px;height:26px;fill:var(--white)}
+.bar .back svg{width:42px;height:42px;fill:var(--white)}
 .bar .back svg .k{fill:var(--banner)}
 .bar h2{flex:1;min-width:0;margin:0;font:500 22px/28px var(--title);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .strip{position:relative;flex:none;height:96px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;display:flex;gap:8px;padding:14px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));scroll-snap-type:x proximity}
@@ -597,7 +597,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='136';
+const APPV='137';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

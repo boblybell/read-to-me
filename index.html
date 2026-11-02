@@ -106,13 +106,13 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .menu{position:absolute;left:0;right:0;bottom:130px;z-index:4;display:flex;justify-content:center;gap:34px}
 .menu[hidden],.menu2[hidden]{display:none}
 .mi{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 11px/14px var(--ui);letter-spacing:.08em;text-transform:uppercase}
-.mi>span:last-child{background:#fff;color:#000;padding:2px 6px;border-radius:2px}
+.mi>span:last-child{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .mi .st{position:relative;margin:0;animation:pop .3s both}
 .menu2{position:absolute;left:0;right:0;bottom:36px;z-index:4;display:flex;justify-content:space-between;padding:0 34px}
-.mini{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 11px/14px var(--ui);letter-spacing:.08em;text-transform:uppercase}
+.mini{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font:500 11px/14px var(--ui);letter-spacing:.08em;text-transform:uppercase}
 .mini b{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .mini b svg{width:20px;height:20px}
-.mini>span{background:#fff;color:#000;padding:2px 6px;border-radius:2px}
+.mini>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap} /* icons only, label kept for screen readers (Bell 2 Nov 2026: declutter) */
 .dim{position:absolute;inset:0;background:rgba(255,255,255,.45);z-index:3}
 .dim[hidden]{display:none}
 .pill{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:4;background:rgba(255,255,255,.9);color:#000;border-radius:999px;padding:6px 14px;font:500 13px/18px var(--ui);white-space:nowrap;pointer-events:none;transition:opacity .25s}
@@ -250,11 +250,11 @@ body{margin:0}
 #glass .menu{bottom:calc(158px + env(safe-area-inset-bottom,0px))}
 #glass .menu2{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
 /* plus menu buttons close together (Bell 1 Nov 2026) */
-#glass .menu2{justify-content:center;gap:16px;padding:0}
+#glass .menu2{justify-content:center;gap:22px;padding:0}
 #glass.menuopen .strip{visibility:hidden}
 #glass.menuopen .btnwrap{visibility:hidden}
-#glass.full .menu{bottom:124px}
-#glass.full .menu2{bottom:36px}
+#glass.full .menu{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+#glass.full .menu2{bottom:calc(36px + env(safe-area-inset-bottom,0px))}
 #glass .pill{top:calc(88px + max(4px,calc(env(safe-area-inset-top,0px) - 12px)))}
 /* read-aloud sticker grows into a teal pill with two buttons: play/stop and record (Bell 31 Oct 2026) */
 #vm{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.3)}
@@ -585,7 +585,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='117';
+const APPV='118';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

@@ -42,7 +42,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .book:active{transform:scale(.97)}
 .book svg.art{position:absolute;inset:0;width:100%;height:100%}
 .book::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 10px rgba(40,25,10,.3)}
-.band{position:absolute;left:6px;right:6px;bottom:6px;height:20px;display:flex;align-items:center;justify-content:space-between}
+.band{position:absolute;left:6px;right:6px;bottom:3px;height:20px;display:flex;align-items:center;justify-content:space-between}
 .li{width:20px;height:20px;display:block}
 .add{position:absolute;inset:0;border:1.5px dashed rgba(255,246,230,.18);border-radius:3px;display:grid;place-items:center}
 .add svg{width:40px;height:40px;fill:var(--cream);filter:drop-shadow(0 1px 0 rgba(90,50,15,.55))}
@@ -594,7 +594,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='129';
+const APPV='130';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

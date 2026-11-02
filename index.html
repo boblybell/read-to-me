@@ -102,7 +102,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .btn svg{width:36px;height:36px}
 .btn.x{background:#fff}
 .btn.bare{background:none;box-shadow:none;width:88px;height:88px;border-radius:50%;transition:transform .12s}
-.btn{-webkit-tap-highlight-color:transparent} /* no square flash when the button changes (Bell 2 Nov 2026) */
+.btn,.btn:focus{-webkit-tap-highlight-color:transparent;outline:none} /* no square flash when the button changes (Bell 2 Nov 2026) */
 .btn.bare svg{overflow:visible;width:88px;height:88px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
 .menu{position:absolute;left:0;right:0;bottom:130px;z-index:4;display:flex;justify-content:center;gap:34px}
 .menu[hidden],.menu2[hidden]{display:none}

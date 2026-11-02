@@ -355,7 +355,7 @@ html.pwa #app{height:calc(100% + env(safe-area-inset-top,0px))}
 
   <section class="screen" id="glass" aria-label="Reading" hidden>
     <header class="bar">
-      <button class="back" id="backBtn" aria-label="Library"><svg viewBox="0 0 24 24"><rect x="3" y="15.5" width="18" height="5" rx="1.6"/><rect x="5" y="9.5" width="15" height="5" rx="1.6"/><rect x="3.5" y="3.5" width="16" height="5" rx="1.6" transform="rotate(-4 11.5 6)"/><rect class="k" x="5.5" y="17.3" width="9" height="1.3" rx=".65"/><rect class="k" x="7.5" y="11.3" width="7" height="1.3" rx=".65"/></svg></button>
+      <button class="back" id="backBtn" aria-label="Library"><svg viewBox="0 0 24 24"><rect x="4.2" y="4" width="3.6" height="13.4" rx="1.1"/><rect x="8.7" y="6" width="3.6" height="11.4" rx="1.1"/><rect x="14.3" y="5" width="3.6" height="12.6" rx="1.1" transform="rotate(-18 16.1 17.4)"/><rect x="2" y="18.6" width="20" height="2.6" rx="1.3"/></svg></button>
       <h2 id="bookTitle"></h2>
     </header>
     <div class="prog" id="prog" aria-label="Book progress"></div>
@@ -597,7 +597,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='135';
+const APPV='136';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

@@ -587,7 +587,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='123';
+const APPV='124';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -924,7 +924,9 @@ const SH={
   /* the Voice sticker looks the same as the read-aloud play sticker (Bell 31 Oct 2026) */
   voice:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#5AADA6',g:'<path d="M9 6.5v11l9-5.5z" fill="#000"/>'},
   q:{shape:f=>`<circle cx="23" cy="23" r="21.5" fill="${f}"/>`,fill:'#A1579E',g:'<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.3-1.5 2.4v.5" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.7" fill="#fff"/>'}};
-const stickerHTML=(t,extra='')=>`<svg class="b" viewBox="0 0 46 46">${SH[t].shape(SH[t].fill)}</svg><svg class="g" viewBox="0 0 24 24">${SH[t].g}</svg>${extra}`;
+/* stickers use the same icons as the count bar: narration speaker, word A, fact bulb, Q&A bubble (Bell 2 Nov 2026) */
+const STI={play:'narr',voice:'narr',word:'word',fact:'fact',q:'qa'};
+const stickerHTML=(t,extra='')=>`<svg class="b" viewBox="0 0 24 24">${solid(TYPES[STI[t]])}</svg>${extra}`;
 /* a scanned page shows its saved photo with the stickers on it; the live camera shows only for a new page or after Regenerate (Bell 31 Oct 2026) */
 const stillOn=()=>!$('#still').hidden&&$('#still').naturalWidth>0;
 async function showStill(){const el=$('#still'),p=page(),u=p.scanned&&p.frame&&await blobURL(p.frame);

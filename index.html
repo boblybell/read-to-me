@@ -208,6 +208,7 @@ body{margin:0}
 .ltop h1,.card h3,.word,.book .nm{font-family:var(--num);font-weight:800;letter-spacing:0}
 /* library icon and book title 5 px lower (3 + 2); bar size unchanged (Bell 31 Oct 2026) */
 #glass .bar>*{position:relative;top:13px}
+#glass .bar h2{text-shadow:none!important} /* no shadow, same style as the library title (Bell 2 Nov 2026) */
 /* title on the left where "Austin's Library" sits, Library button on the right where the settings gear sits (Bell 2 Nov 2026) */
 #glass .bar{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #glass .bar .back{order:2}#glass .bar h2{order:1} /* title at the same height as "Austin's Library" (Bell 2 Nov 2026; was 5 px) */
@@ -606,7 +607,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='151';
+const APPV='152';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

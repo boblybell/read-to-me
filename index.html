@@ -224,6 +224,7 @@ body{margin:0}
 .add svg{fill:rgba(35,40,56,.55);filter:none}
 /* stickers follow the page; they fade when the page is not in the glass */
 #stickers .st{transition:left .12s linear,top .12s linear,opacity .25s}
+#world.stillmode #stickers .st{transition:opacity .25s}
 #stickers.lost .st,#stickers .st.off{opacity:0;pointer-events:none}
 /* expand mode: tap the glass, the camera view fills the screen; tap again to go back (Bell 31 Oct 2026) */
 #glass.full .bar,#glass.full .prog,#glass.full .strip{display:none}
@@ -582,7 +583,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='114';
+const APPV='115';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -932,9 +933,8 @@ function stillRect(){const el=$('#still'),g=$('#glass'),W=$('#world').offsetWidt
 function layoutStill(){const el=$('#still');if(!stillOn()){$('#world').classList.remove('stillmode');return}const r=stillRect(),b=r.b;
   Object.assign(el.style,{left:r.l+'px',top:r.t+'px',width:r.dw+'px',height:r.dh+'px',clipPath:`inset(${b.y*r.dh}px ${(1-b.x-b.w)*r.dw}px ${(1-b.y-b.h)*r.dh}px ${b.x*r.dw}px round 6px)`});$('#world').classList.add('stillmode')}
 addEventListener('resize',()=>{if(!S||S.cur==null||$('#glass').hidden) return;layoutStill();placeStickers()});
-let swipeNext=false; /* swipe: stickers come in with the page, no pop, no jump, no slide: the new page just shows (Bell 2 Nov 2026) */
-async function renderPage(){vmClose();$('#stickers').innerHTML='';const sw=swipeNext;swipeNext=false;setZoom(1);renderBtn();const p=page();
-  if(p.scanned){await showStill();if(p!==page()) return;drawStickers(!sw&&!shown[key()],sw);shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers(false,sw)}
+async function renderPage(){vmClose();$('#stickers').innerHTML='';setZoom(1);renderBtn();const p=page();
+  if(p.scanned){await showStill();if(p!==page()) return;drawStickers();shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers()}
   placeStickers()}
 const allStickers=()=>[...page().stickers,...page().own];
 let nfly=null;
@@ -961,10 +961,11 @@ function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s
   go()}
 function flyPos(){if(!nfly) return;const el=document.querySelector(`.st[data-id="${nfly.dataset.for}"]`);if(!el){nfly.remove();nfly=null;return}
   nfly.style.left=el.style.left;nfly.style.top=el.style.top;nfly.classList.toggle('flip',parseFloat(el.style.left)>62)}
-function drawStickers(stagger,calm){const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
+/* stickers pop only right after they are made; open book, swipe, recognize = no motion (Bell 2 Nov 2026) */
+function drawStickers(pop){const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
   allStickers().forEach((s,i)=>{const d=document.createElement('button');d.className='st'+(s.open?' seen':'');d.dataset.id=s.id;
     d.style.left=(s.x*100)+'%';d.style.top=(s.y*100)+'%';d.setAttribute('aria-label',{play:'Read aloud',word:'Word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]);
-    if(calm) d.classList.add('still');else if(stagger) d.style.animationDelay=(i*160)+'ms';d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
+    if(pop) d.style.animationDelay=(i*160)+'ms';else d.classList.add('still');d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
 /* ================= page tracking =================
    The app finds the saved page in the live camera picture, about 8 times a second, on this phone only.
    Stickers are saved by their place on the page photo; they follow the paper and fade when the page leaves the glass.
@@ -1021,12 +1022,12 @@ function liveFrame(){const v=$('#cam');if(!stream||!v.videoWidth||v.paused) retu
   const W=$('#world').offsetWidth,H=$('#world').offsetHeight,vw=v.videoWidth,vh=v.videoHeight,k=Math.max(W/vw,H/vh),sw=W/k,sh=H/k;
   const w=TW,h=Math.round(TW*H/W),[c,x]=trk.can&&trk.can[0].width===w&&trk.can[0].height===h?trk.can:(trk.can=canvasOf(w,h));
   x.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);return {w,h,data:x.getImageData(0,0,w,h).data}}
-function placeStickers(){const box=$('#stickers'),p=page(),on=stillOn()||tracked();box.classList.toggle('lost',!on);if(!on) return;
+function placeStickers(){const box=$('#stickers'),p=page(),on=stillOn()||tracked();if(stillOn()) layoutStill();box.classList.toggle('lost',!on);if(!on) return;
   box.querySelectorAll('.st').forEach(el=>{if(drag&&drag.on&&drag.st===el) return;const s=allStickers().find(s=>s.id===el.dataset.id);if(!s) return;
     const q=toWorld(p,s.x,s.y);if(!q) return;
     /* steady stickers: shakes under 14 px are ignored, moves under 90 px are eased, big moves jump; a short miss does not hide them (Bell 31 Oct 2026) */
     const W=$('#world').offsetWidth,Hh=$('#world').offsetHeight,c=el._p;
-    if(c){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<14) return;if(dd<90){q[0]=c[0]+(q[0]-c[0])*.25;q[1]=c[1]+(q[1]-c[1])*.25}}
+    if(c&&!stillOn()){const dd=Math.hypot((q[0]-c[0])*W,(q[1]-c[1])*Hh);if(dd<14) return;if(dd<90){q[0]=c[0]+(q[0]-c[0])*.25;q[1]=c[1]+(q[1]-c[1])*.25}}
     el._p=q;el.style.left=(q[0]*100)+'%';el.style.top=(q[1]*100)+'%';el.classList.toggle('off',q[0]<-.05||q[0]>1.05||q[1]<-.05||q[1]>1.05)});flyPos()}
 async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null) return;
   try{await loadFeat();const f=liveFrame();
@@ -1042,7 +1043,7 @@ async function trackTick(){trk.timer=null;if($('#glass').hidden||!S||S.cur==null
         const fresh=!page().scanned&&performance.now()-trk.manualAt<6000;
         if(found!==S.page&&!vm&&trk.hits>=(page().scanned?2:12)&&!fresh&&performance.now()-trk.manualAt>1500){S.page=found;save();await renderStrip();renderPage();hint('')}}
       else{trk.miss++;if(trk.miss>=3){trk.hits=0}}
-      if(page().scanned&&tracked()&&!shown[key()]){shown[key()]=true;drawStickers(true)}
+      if(page().scanned&&tracked()&&!shown[key()]){shown[key()]=true;drawStickers()}
       placeStickers()}}
   catch(e){console.warn('track',e)}
   if(!$('#glass').hidden) trk.timer=setTimeout(trackTick,90)}
@@ -1125,7 +1126,7 @@ function openMenu(){mode='menu';$('#dim').hidden=false;
 function closeMenu(){if(mode==='menu') mode='idle';$('#dim').hidden=true;$('#menu').hidden=true;$('#menu2').hidden=true;$('#glass').classList.remove('menuopen');renderBtn()}
 document.addEventListener('click',e=>{const m=e.target.closest('[data-m]');if(!m) return;const k=m.dataset.m;closeMenu();
   if(k==='voice'||k==='q'){mode='place:'+k;renderBtn();hint('Tap the page to put it there.',true)}
-  if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;$('#still').hidden=true;layoutStill();delete shown[key()];save();drawStickers(false);renderBtn();renderStrip();hint('Your own stickers stay. Tap the magnifier to scan again.')}
+  if(k==='regen'){const p=page();p.stickers=[];p.scanned=false;$('#still').hidden=true;layoutStill();delete shown[key()];save();drawStickers();renderBtn();renderStrip();hint('Your own stickers stay. Tap the magnifier to scan again.')}
   if(k==='del') setDel(true);
   if(k==='crop') recrop(S.page);
   if(k==='rot') rotatePage(S.page)});
@@ -1141,7 +1142,7 @@ $('#lens').addEventListener('click',e=>{
   if(mode.startsWith('place')){const r=$('#world').getBoundingClientRect();const q=toPage(page(),(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
     if(!(stillOn()||tracked())||!q){hint('Point the glass at the page, then tap.');return}const x=q[0],y=q[1];
     const t=mode.split(':')[1];const o={id:uid(),type:t,x,y,open:true};
-    page().own.push(o);save();mode='idle';renderBtn();drawStickers(false);hint('');openSticker(o);return}
+    page().own.push(o);save();mode='idle';renderBtn();drawStickers();hint('');openSticker(o);return}
   if(st&&mode==='idle'){openSticker(allStickers().find(s=>s.id===st.dataset.id));return}
   if(mode==='idle'&&!st&&nfly){closeFly();return}
   if(mode==='idle'&&!st&&!e.target.closest('.nocam')&&performance.now()-pinchAt>400){$('#glass').classList.toggle('full');layoutStill();placeStickers()}});
@@ -1286,7 +1287,7 @@ lens.addEventListener('pointerdown',e=>{swp=($('#glass').classList.contains('ful
 ['pointerup','pointercancel'].forEach(ev=>lens.addEventListener(ev,async e=>{const w=swp;swp=null;if(!w||e.pointerId!==w.id||ev==='pointercancel'||drag||zoom>1||performance.now()-pinchAt<400) return;
   const dx=e.clientX-w.x,dy=e.clientY-w.y;if(Math.abs(dx)<50||Math.abs(dx)<1.5*Math.abs(dy)||performance.now()-w.t>800) return;
   noClick=true;setTimeout(()=>noClick=false,350);const n=S.page+(dx<0?1:-1);if(n<0||n>=book().pages.length) return;
-  closeMenu();setDel(false);S.page=n;trk.manualAt=performance.now();trk.page=n;trk.H=null;trk.miss=9;trk.unknownSince=0;save();stripCenter=true;swipeNext=true;await renderStrip();await renderPage();
+  closeMenu();setDel(false);S.page=n;trk.manualAt=performance.now();trk.page=n;trk.H=null;trk.miss=9;trk.unknownSince=0;save();stripCenter=true;await renderStrip();await renderPage();
   hint(!page().scanned?'New page. Tap the magnifier to make stickers.':'')}));
 
 /* sheet, toast, hint */

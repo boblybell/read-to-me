@@ -1,5 +1,5 @@
 // Keeps the app working offline. Your books and voices are in IndexedDB, not here.
-const CACHE='readtome-v157';
+const CACHE='readtome-v158';
 const FILES=['./','index.html','manifest.webmanifest','icon-c180.png','icon-c192.png','icon-c512.png','lib-bg-paper.jpg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES.map(f=>new Request(f,{cache:'reload'})))));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});

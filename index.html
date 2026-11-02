@@ -101,7 +101,8 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .btn:active{transform:scale(.95)}
 .btn svg{width:36px;height:36px}
 .btn.x{background:#fff}
-.btn.bare{background:none;box-shadow:none;width:88px;height:88px;border-radius:0}
+.btn.bare{background:none;box-shadow:none;width:88px;height:88px;border-radius:50%;transition:transform .12s}
+.btn{-webkit-tap-highlight-color:transparent} /* no square flash when the button changes (Bell 2 Nov 2026) */
 .btn.bare svg{overflow:visible;width:88px;height:88px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
 .menu{position:absolute;left:0;right:0;bottom:130px;z-index:4;display:flex;justify-content:center;gap:34px}
 .menu[hidden],.menu2[hidden]{display:none}
@@ -598,7 +599,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='141';
+const APPV='142';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

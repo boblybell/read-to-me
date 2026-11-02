@@ -473,15 +473,21 @@ function flashCrop(b,q){if(!b&&!q) return;const L=$('#cropl');$('#cropImg').remo
 function makeStickers(p,r){const W=$('#world').offsetWidth,H=$('#world').offsetHeight,out=[],b=r.box||{x:0,y:0,w:1,h:1};
   /* stickers sit NEXT TO the words, never on them (Bell 1 Nov 2026).
      Sticker size in photo units: the page photo is shown zoomed to fit its crop. */
-  const z=Math.min(W/(b.w*W),(H*.62)/(b.h*H)),rx=30/(W*z),ry=30/(H*z),mx=4/(W*z),my=4/(H*z);
+  const z=Math.min(W/(b.w*W),(H*.62)/(b.h*H)),rx=30/(W*z),ry=30/(H*z),mx=12/(W*z),my=12/(H*z); /* 12 px gap: room for the float motion (Bell 2 Nov 2026) */
   const words=(r.all||[]).filter(w=>w.x1>w.x0&&w.y1>w.y0);
+  /* text blocks: words close together (gap under one line height) join into one block; stickers stay off the whole block (Bell 2 Nov 2026) */
+  const par=words.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i]));
+  words.forEach((a,i)=>{const h=a.y1-a.y0;words.forEach((c,j)=>{if(j<=i) return;const g=Math.max(h,c.y1-c.y0);
+    if(a.x0-g*1.2<c.x1&&c.x0<a.x1+g*1.2&&a.y0-g*.9<c.y1&&c.y0<a.y1+g*.9) par[fd(i)]=fd(j)})});
+  const blk={};words.forEach((w,i)=>{const k=fd(i),o=blk[k];blk[k]=o?{x0:Math.min(o.x0,w.x0),y0:Math.min(o.y0,w.y0),x1:Math.max(o.x1,w.x1),y1:Math.max(o.y1,w.y1)}:{x0:w.x0,y0:w.y0,x1:w.x1,y1:w.y1}});
+  const blocks=Object.values(blk),blockOf=w=>blocks.find(B=>w.x0>=B.x0-1e-6&&w.x1<=B.x1+1e-6&&w.y0>=B.y0-1e-6&&w.y1<=B.y1+1e-6)||w;
   const inX=x=>x>=Math.max(b.x,0)+rx&&x<=Math.min(b.x+b.w,1)-rx,inY=y=>y>=Math.max(b.y,0)+ry&&y<=Math.min(b.y+b.h,1)-ry;
-  const free=(x,y)=>inX(x)&&inY(y)&&words.every(w=>x+rx+mx<w.x0||x-rx-mx>w.x1||y+ry+my<w.y0||y-ry-my>w.y1)&&out.every(o=>Math.abs(o.x-x)>2*rx+mx||Math.abs(o.y-y)>2*ry+my);
+  const free=(x,y)=>inX(x)&&inY(y)&&blocks.every(w=>x+rx+mx<w.x0||x-rx-mx>w.x1||y+ry+my<w.y0||y-ry-my>w.y1)&&out.every(o=>Math.abs(o.x-x)>2*rx+mx||Math.abs(o.y-y)>2*ry+my);
   /* try spots around the word, nearest first; pref = small extra cost for the less wanted sides */
-  const spot=(w,pref)=>{const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2,c=[];
+  const spot=(w,pref)=>{const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2,B=blockOf(w),c=[];
     for(let k=0;k<10;k++){const d=k*rx;
-      c.push([w.x0-rx-mx-d,cy,pref.left],[w.x1+rx+mx+d,cy,pref.right]);
-      for(const dx of [0,-d,d]){c.push([cx+dx,w.y0-ry-my-k*ry*.6,pref.up],[cx+dx,w.y1+ry+my+k*ry*.6,pref.down])}}
+      c.push([B.x0-rx-mx-d,cy,pref.left],[B.x1+rx+mx+d,cy,pref.right]);
+      for(const dx of [0,-d,d]){c.push([cx+dx,B.y0-ry-my-k*ry*.6,pref.up],[cx+dx,B.y1+ry+my+k*ry*.6,pref.down])}}
     let best=null,bd=1e9;for(const [x,y,pf] of c){if(!free(x,y)) continue;const dd=Math.hypot((x-cx)*W,(y-cy)*H)*z+pf;if(dd<bd){bd=dd;best=[x,y]}}return best};
   const put=(s,w,pref)=>{const q=spot(w,pref);if(q){s.x=q[0];s.y=q[1];out.push(s)}};
   put({id:uid(),type:'play',open:false},r.first,{left:0,up:30,right:200,down:200});
@@ -587,7 +593,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='124';
+const APPV='125';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -972,10 +978,10 @@ let swirlNext=false;
 function floatOn(d){d.classList.add('swirl');d.style.animationDuration=(3.5+Math.random()*2.5).toFixed(1)+'s';d.style.animationDelay=(-Math.random()*6).toFixed(1)+'s';d.style.animationDirection=Math.random()<.5?'alternate-reverse':''}
 /* full screen = stickers float (Bell 2 Nov 2026) */
 function setFloat(on){document.querySelectorAll('#stickers .st').forEach(d=>{if(on) floatOn(d);else{d.classList.remove('swirl');d.classList.add('still');d.style.animationDuration=d.style.animationDelay=d.style.animationDirection=''}})}
-function drawStickers(pop){const sw=swirlNext||$('#glass').classList.contains('full');swirlNext=false;const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
+function drawStickers(pop){swirlNext=false;const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
   allStickers().forEach((s,i)=>{const d=document.createElement('button');d.className='st'+(s.open?' seen':'');d.dataset.id=s.id;
     d.style.left=(s.x*100)+'%';d.style.top=(s.y*100)+'%';d.setAttribute('aria-label',{play:'Read aloud',word:'Word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]);
-    if(pop) d.style.animationDelay=(i*160)+'ms';else{d.classList.add('still');if(sw) floatOn(d)}d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
+    if(pop){d.style.animationDelay=(i*160)+'ms';d.addEventListener('animationend',()=>{d.style.animationDelay='';d.classList.add('still');floatOn(d)},{once:true})}else{d.classList.add('still');floatOn(d)}d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
 /* ================= page tracking =================
    The app finds the saved page in the live camera picture, about 8 times a second, on this phone only.
    Stickers are saved by their place on the page photo; they follow the paper and fade when the page leaves the glass.
@@ -1155,7 +1161,7 @@ $('#lens').addEventListener('click',e=>{
     page().own.push(o);save();mode='idle';renderBtn();drawStickers();hint('');openSticker(o);return}
   if(st&&mode==='idle'){openSticker(allStickers().find(s=>s.id===st.dataset.id));return}
   if(mode==='idle'&&!st&&nfly){closeFly();return}
-  if(mode==='idle'&&!st&&!e.target.closest('.nocam')&&performance.now()-pinchAt>400){$('#glass').classList.toggle('full');setFloat($('#glass').classList.contains('full'));layoutStill();placeStickers()}});
+  if(mode==='idle'&&!st&&!e.target.closest('.nocam')&&performance.now()-pinchAt>400){$('#glass').classList.toggle('full');layoutStill();placeStickers()}});
 
 /* ===== voice panels like the iOS Voice Memos app (Bell 31 Oct 2026) =====
    tap the read-aloud sticker or a Voice sticker = playback panel; red record = record panel.

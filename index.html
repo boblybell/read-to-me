@@ -581,7 +581,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='100';
+const APPV='101';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -1278,6 +1278,15 @@ lens.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;
   drag=null}));
 lens.addEventListener('click',e=>{if(noClick){e.stopImmediatePropagation();noClick=false}},true);
 lens.addEventListener('contextmenu',e=>e.preventDefault());
+/* full screen page (after a tap): swipe left = next page, swipe right = page before (Bell 2 Nov 2026) */
+let swp=null;
+lens.addEventListener('pointerdown',e=>{swp=($('#glass').classList.contains('full')&&mode==='idle'&&pts.size<=1)?{id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()}:null});
+['pointerup','pointercancel'].forEach(ev=>lens.addEventListener(ev,async e=>{const w=swp;swp=null;if(!w||e.pointerId!==w.id||ev==='pointercancel'||drag||zoom>1||performance.now()-pinchAt<400) return;
+  const dx=e.clientX-w.x,dy=e.clientY-w.y;if(Math.abs(dx)<50||Math.abs(dx)<1.5*Math.abs(dy)||performance.now()-w.t>800) return;
+  noClick=true;setTimeout(()=>noClick=false,350);const n=S.page+(dx<0?1:-1);if(n<0||n>=book().pages.length){$('#world').animate([{transform:'translateX(0)'},{transform:`translateX(${dx<0?-18:18}px)`},{transform:'translateX(0)'}],{duration:220});return}
+  closeMenu();setDel(false);S.page=n;trk.manualAt=performance.now();trk.page=n;trk.H=null;trk.miss=9;trk.unknownSince=0;save();stripCenter=true;await renderStrip();await renderPage();
+  $('#world').animate([{opacity:.3,transform:`translateX(${dx<0?40:-40}px)`},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'ease-out'});
+  hint(!page().scanned?'New page. Tap the magnifier to make stickers.':'')}));
 
 /* sheet, toast, hint */
 function sheet(html,wire,keepFocus){const c=$('#card');c.innerHTML=html;$('#sheet').hidden=false;c.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);if(wire) wire(c);if(!keepFocus){const f=c.querySelector('.act.main');if(f) f.focus({preventScroll:true})}}

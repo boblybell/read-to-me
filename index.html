@@ -218,7 +218,7 @@ body{margin:0}
 /* penguin library (Bell 1 Nov 2026): the app icon picture is the back wall; shelves take the wall colour */
 #lib{background:#F0F3F8 url(lib-bg-paper.jpg) center bottom/100% auto no-repeat}
 #lib svg.wood{display:none}
-.ltop h1{color:#232838;text-shadow:none}
+.ltop h1{color:#5B6EAA;text-shadow:none} /* Deep paint (Bell 2 Nov 2026) */
 .ltop .acct svg{fill:#8C6BC8;filter:none} /* Headphones purple (Bell 2 Nov 2026) */
 .ledge{border-radius:0 0 3px 3px;background:linear-gradient(rgba(255,255,255,.8) 0,rgba(255,255,255,.5) 30%,rgba(255,255,255,.28) 100%);box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 rgba(35,50,85,.3),0 19px 24px -3px rgba(30,45,80,.3),0 4px 7px rgba(30,45,80,.22)}
 .ledge::before{left:0;right:0;clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 100%,0 100%);background:linear-gradient(rgba(35,50,85,.42) 0,rgba(35,50,85,.2) 30%,rgba(255,255,255,.35) 65%,rgba(255,255,255,.85) 100%);box-shadow:inset 0 1px 2px rgba(30,45,80,.25)}
@@ -228,8 +228,8 @@ body{margin:0}
 #shelves .shelf:first-child{padding-top:4px} /* room for the 3 px lift, so the top line of the plus box is not cut */
 /* shelf ends: the side edge of the top runs straight from the front corner back to the wall, in line with the cover edge (Bell 1 Nov 2026) */
 .book{box-shadow:7px 11px 16px -5px rgba(30,45,80,.22),-5px 10px 12px -4px rgba(30,45,80,.12),0 1px 1px rgba(20,30,55,.35)}
-.add{border-color:#8C6BC8}
-.add svg{fill:#8C6BC8;filter:none} /* Headphones purple plus and dashed box (Bell 2 Nov 2026) */
+.add{border-color:#5B6EAA}
+.add svg{fill:#5B6EAA;filter:none} /* Deep paint plus and dashed box (Bell 2 Nov 2026) */
 /* stickers follow the page; they fade when the page is not in the glass */
 #stickers .st{transition:left .12s linear,top .12s linear,opacity .25s}
 #world.stillmode #stickers .st{transition:opacity .25s}
@@ -602,7 +602,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='144';
+const APPV='145';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}

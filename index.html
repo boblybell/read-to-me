@@ -85,9 +85,11 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .st.seen svg.b{opacity:.92}
 .st .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;display:none;place-items:center;font:500 13px/1 var(--ui)}
 .delmode .st .x{display:grid}
+.st.jmp{animation:jump .55s cubic-bezier(.3,.7,.4,1) both}.st.done{animation:none}
 .delmode .st{animation:wig .3s ease-in-out infinite alternate}
 .st.playing::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid #5AADA6;animation:ring 1s ease-out infinite}
 @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes jump{0%{transform:translateY(30px) scale(0)}45%{transform:translateY(-22px) scale(1.1)}70%{transform:translateY(0) scale(.95)}85%{transform:translateY(-6px) scale(1)}100%{transform:translateY(0) scale(1)}}
 @keyframes wig{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
 @keyframes ring{from{transform:scale(.9);opacity:1}to{transform:scale(1.5);opacity:0}}
 
@@ -133,7 +135,7 @@ button:focus-visible{outline:2px solid #64D2FF;outline-offset:2px}
 .note{font:400 13px/18px var(--ui);color:#666}
 .toast{position:absolute;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:#111;color:#fff;padding:10px 16px;border-radius:12px;font:400 14px/20px var(--ui);max-width:calc(100% - 32px);text-align:center;transition:opacity .3s}
 .toast[hidden]{display:none}
-@media (prefers-reduced-motion:reduce){.st,.mi .st,.card{animation:none}.delmode .st{animation:none}}
+@media (prefers-reduced-motion:reduce){.st.jmp,.st,.mi .st,.card{animation:none}.delmode .st{animation:none}}
 
 html{background:#111;-webkit-touch-callout:none}
 body{margin:0}
@@ -581,7 +583,7 @@ async function askRestore(f){let j;try{j=JSON.parse(await f.text())}catch(e){toa
 
 /* ================= camera ================= */
 let stream=null;
-const APPV='111';
+const APPV='112';
 async function camOn(){const v=$('#cam'),n=$('#nocam');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
   if(!stream){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){n.hidden=false;n.textContent='This browser cannot use the camera. Open the app from Safari.';return}
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false})}
@@ -931,8 +933,9 @@ function stillRect(){const el=$('#still'),g=$('#glass'),W=$('#world').offsetWidt
 function layoutStill(){const el=$('#still');if(!stillOn()){$('#world').classList.remove('stillmode');return}const r=stillRect(),b=r.b;
   Object.assign(el.style,{left:r.l+'px',top:r.t+'px',width:r.dw+'px',height:r.dh+'px',clipPath:`inset(${b.y*r.dh}px ${(1-b.x-b.w)*r.dw}px ${(1-b.y-b.h)*r.dh}px ${b.x*r.dw}px round 6px)`});$('#world').classList.add('stillmode')}
 addEventListener('resize',()=>{if(!S||S.cur==null||$('#glass').hidden) return;layoutStill();placeStickers()});
-async function renderPage(){vmClose();$('#stickers').innerHTML='';setZoom(1);renderBtn();const p=page();
-  if(p.scanned){await showStill();if(p!==page()) return;drawStickers(!shown[key()]);shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers(false)}
+let jumpNext=false;
+async function renderPage(){vmClose();$('#stickers').innerHTML='';const jmp=jumpNext;jumpNext=false;setZoom(1);renderBtn();const p=page();
+  if(p.scanned){await showStill();if(p!==page()) return;drawStickers(jmp||!shown[key()],jmp);shown[key()]=true}else{$('#still').hidden=true;layoutStill();if(shown[key()]) drawStickers(jmp,jmp)}
   placeStickers()}
 const allStickers=()=>[...page().stickers,...page().own];
 let nfly=null;
@@ -959,10 +962,10 @@ function openFly(s){closeFly();const el=document.querySelector(`.st[data-id="${s
   go()}
 function flyPos(){if(!nfly) return;const el=document.querySelector(`.st[data-id="${nfly.dataset.for}"]`);if(!el){nfly.remove();nfly=null;return}
   nfly.style.left=el.style.left;nfly.style.top=el.style.top;nfly.classList.toggle('flip',parseFloat(el.style.left)>62)}
-function drawStickers(stagger){const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
+function drawStickers(stagger,jump){const box=$('#stickers');box.innerHTML='';nfly=null;box.classList.remove('flyopen');
   allStickers().forEach((s,i)=>{const d=document.createElement('button');d.className='st'+(s.open?' seen':'');d.dataset.id=s.id;
     d.style.left=(s.x*100)+'%';d.style.top=(s.y*100)+'%';d.setAttribute('aria-label',{play:'Read aloud',word:'Word',fact:'Fun fact',voice:'Family voice',q:'Question'}[s.type]);
-    if(stagger) d.style.animationDelay=(i*160)+'ms';d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
+    if(stagger) d.style.animationDelay=(i*(jump?110:160))+'ms';if(jump){d.classList.add('jmp');d.addEventListener('animationend',()=>{d.classList.remove('jmp');d.classList.add('done')},{once:true})}d.innerHTML=stickerHTML(s.type,'<span class="x" aria-hidden="true">×</span>');box.appendChild(d)});placeStickers()}
 /* ================= page tracking =================
    The app finds the saved page in the live camera picture, about 8 times a second, on this phone only.
    Stickers are saved by their place on the page photo; they follow the paper and fade when the page leaves the glass.
@@ -1284,7 +1287,7 @@ lens.addEventListener('pointerdown',e=>{swp=($('#glass').classList.contains('ful
 ['pointerup','pointercancel'].forEach(ev=>lens.addEventListener(ev,async e=>{const w=swp;swp=null;if(!w||e.pointerId!==w.id||ev==='pointercancel'||drag||zoom>1||performance.now()-pinchAt<400) return;
   const dx=e.clientX-w.x,dy=e.clientY-w.y;if(Math.abs(dx)<50||Math.abs(dx)<1.5*Math.abs(dy)||performance.now()-w.t>800) return;
   noClick=true;setTimeout(()=>noClick=false,350);const n=S.page+(dx<0?1:-1);if(n<0||n>=book().pages.length){$('#world').animate([{transform:'translateX(0)'},{transform:`translateX(${dx<0?-18:18}px)`},{transform:'translateX(0)'}],{duration:220});return}
-  closeMenu();setDel(false);S.page=n;trk.manualAt=performance.now();trk.page=n;trk.H=null;trk.miss=9;trk.unknownSince=0;save();stripCenter=true;await renderStrip();await renderPage();
+  closeMenu();setDel(false);S.page=n;trk.manualAt=performance.now();trk.page=n;trk.H=null;trk.miss=9;trk.unknownSince=0;save();stripCenter=true;jumpNext=true;await renderStrip();await renderPage();
   $('#world').animate([{opacity:.3,transform:`translateX(${dx<0?40:-40}px)`},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'ease-out'});
   hint(!page().scanned?'New page. Tap the magnifier to make stickers.':'')}));
 
